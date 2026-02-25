@@ -1631,7 +1631,7 @@ public class FinReport extends SvrProcess
 		if (log.isLoggable(Level.FINE)) log.fine("Name #=" + no + " - " + sql.toString());
 
 		// List Trx Lines not supported by report cube
-		if (m_report.isListTrx() && m_report.getPA_ReportCube_ID() == 0)
+		if (m_report.isListTrx() && p_PA_ReportCube_ID == 0)
 			insertLineTrx (line, variable);
 	}	//	insertLineSource
 
