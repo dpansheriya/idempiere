@@ -49,6 +49,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.adempiere.base.GeneratedCodeCoverageExclusion;
 import org.apache.ecs.AlignType;
 import org.apache.ecs.xhtml.a;
 import org.apache.ecs.xhtml.body;
@@ -87,7 +88,7 @@ public final class WebUtil
 	 *  @throws IOException
 	 *  @deprecated
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static void createLoginPage (HttpServletRequest request, HttpServletResponse response,
 		HttpServlet servlet, Properties ctx, String AD_Message) throws ServletException, IOException
 	{
@@ -114,7 +115,7 @@ public final class WebUtil
 	 *  @return Button
 	 *  @deprecated
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static input getLoginButton (Properties ctx)
 	{
 		String text = "Login";
@@ -138,7 +139,7 @@ public final class WebUtil
 	 *  @return Properties
 	 *  @deprecated
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static Properties getCookieProprties(HttpServletRequest request)
 	{
 		//  Get Properties
@@ -468,7 +469,7 @@ public final class WebUtil
 	 *  @return Clear Frame Script
 	 *  @deprecated
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static script getClearFrame (String targetFrame)
 	{
 		StringBuilder cmd = new StringBuilder();
@@ -492,7 +493,7 @@ public final class WebUtil
 	 * 	@return html
 	 *  @deprecated
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static HtmlCode getForward (String url, int delaySec)
 	{
 		if (delaySec <= 0)
@@ -520,7 +521,7 @@ public final class WebUtil
 	 * 	@throws IOException
 	 *  @deprecated
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static void createForwardPage (HttpServletResponse response,
 		String title, String forwardURL, int delaySec) throws ServletException, IOException
 	{
@@ -726,7 +727,7 @@ public final class WebUtil
 	 *  @return tr table row
 	 *  @deprecated
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	static public tr createField (tr line, String FORMNAME, String PARAMETER,
 		String labelText, String inputType, Object value,
 		int sizeDisplay, int size, boolean longField, 
@@ -764,7 +765,7 @@ public final class WebUtil
 	 *	@return button
 	 *  @deprecated
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static input createClosePopupButton(Properties ctx)
 	{
 		String text = "Close";
@@ -868,7 +869,7 @@ public final class WebUtil
 		
 		MimeType mimeType = MimeType.get(file.getAbsolutePath());
 		//	Stream File
-		try
+		try (FileInputStream in = new FileInputStream(file))
 		{
 			int bufferSize = 2048; //	2k Buffer
 			int fileLength = (int)file.length();
@@ -880,15 +881,12 @@ public final class WebUtil
 			if (log.isLoggable(Level.FINE)) log.fine(file.toString());
 			long time = System.currentTimeMillis();		//	timer start
 			//	Get Data
-			FileInputStream in = new FileInputStream(file);
-			ServletOutputStream out = response.getOutputStream ();
+			try (ServletOutputStream out = response.getOutputStream ();) {
 			int c = 0;
 			while ((c = in.read()) != -1)
 				out.write(c);
 			//
-			out.flush();
-			out.close();
-			in.close();
+			out.flush();}			
 			//
 			time = System.currentTimeMillis() - time;
 			double speed = (fileLength/(double)1024) / (time/(double)1000);
@@ -911,7 +909,7 @@ public final class WebUtil
 	 * 	@param response response to add cookie
 	 *  @deprecated
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static void deleteCookieWebUser (HttpServletRequest request, HttpServletResponse response, String COOKIE_NAME)
 	{
 		Cookie cookie = new Cookie(COOKIE_NAME, " ");
@@ -942,7 +940,7 @@ public final class WebUtil
 	 * 	@param webUser email address
 	 *  @deprecated
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static void addCookieWebUser (HttpServletRequest request, HttpServletResponse response, String webUser, String COOKIE_NAME)
 	{
 	  try {
@@ -965,7 +963,9 @@ public final class WebUtil
 	 * 	@return true if saved
 	 *  @deprecated
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
+	@SuppressWarnings("removal")
+	@GeneratedCodeCoverageExclusion
 	public static boolean updateFields (HttpServletRequest request, WebUser wu, boolean updateEMailPwd)
 	{
 		if (updateEMailPwd)

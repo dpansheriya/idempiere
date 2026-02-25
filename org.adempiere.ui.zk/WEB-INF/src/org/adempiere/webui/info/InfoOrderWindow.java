@@ -25,7 +25,7 @@
 package org.adempiere.webui.info;
 
 import org.compiere.model.GridField;
-import org.compiere.model.Lookup;
+import org.idempiere.db.util.SQLFragment;
 
 /**
  * Info window for C_Order
@@ -47,6 +47,8 @@ public class InfoOrderWindow extends InfoWindow {
 	 * @param whereClause
 	 * @param AD_InfoWindow_ID
 	 */
+	@SuppressWarnings("removal")
+	@Deprecated (since="13", forRemoval=true)
 	public InfoOrderWindow(int WindowNo, String tableName, String keyColumn,
 			String queryValue, boolean multipleSelection, String whereClause,
 			int AD_InfoWindow_ID) {
@@ -60,10 +62,28 @@ public class InfoOrderWindow extends InfoWindow {
 	 * @param keyColumn
 	 * @param queryValue
 	 * @param multipleSelection
+	 * @param AD_InfoWindow_ID
+	 * @param sqlFilter
+	 */
+	public InfoOrderWindow(int WindowNo, String tableName, String keyColumn,
+			String queryValue, boolean multipleSelection, 
+			int AD_InfoWindow_ID, SQLFragment sqlFilter) {
+		super(WindowNo, tableName, keyColumn, queryValue, multipleSelection,
+				AD_InfoWindow_ID, sqlFilter);
+	}
+	
+	/**
+	 * @param WindowNo
+	 * @param tableName
+	 * @param keyColumn
+	 * @param queryValue
+	 * @param multipleSelection
 	 * @param whereClause
 	 * @param AD_InfoWindow_ID
 	 * @param lookup
 	 */
+	@SuppressWarnings("removal")
+	@Deprecated (since="13", forRemoval=true)
 	public InfoOrderWindow(int WindowNo, String tableName, String keyColumn,
 			String queryValue, boolean multipleSelection, String whereClause,
 			int AD_InfoWindow_ID, boolean lookup) {
@@ -83,6 +103,8 @@ public class InfoOrderWindow extends InfoWindow {
 	 * @param field
 	 * @param predefinedContextVariables
 	 */
+	@SuppressWarnings("removal")
+	@Deprecated (since="13", forRemoval=true)
 	public InfoOrderWindow(int WindowNo, String tableName, String keyColumn,
 			String queryValue, boolean multipleSelection, String whereClause,
 			int AD_InfoWindow_ID, boolean lookup,  GridField field, String predefinedContextVariables) {
@@ -96,18 +118,16 @@ public class InfoOrderWindow extends InfoWindow {
 	 * @param keyColumn
 	 * @param queryValue
 	 * @param multipleSelection
-	 * @param whereClause
 	 * @param AD_InfoWindow_ID
 	 * @param lookup
 	 * @param field
 	 * @param predefinedContextVariables
-	 * @param lookupModel
+	 * @param sqlFilter
 	 */
-	public InfoOrderWindow(int WindowNo, String tableName, String keyColumn, String queryValue,
-			boolean multipleSelection, String whereClause, int AD_InfoWindow_ID, boolean lookup, GridField field,
-			String predefinedContextVariables, Lookup lookupModel) {
-		super(WindowNo, tableName, keyColumn, queryValue, multipleSelection, whereClause, AD_InfoWindow_ID, lookup, field,
-				predefinedContextVariables, lookupModel);
+	public InfoOrderWindow(int WindowNo, String tableName, String keyColumn,
+			String queryValue, boolean multipleSelection, 
+			int AD_InfoWindow_ID, boolean lookup,  GridField field, String predefinedContextVariables, SQLFragment sqlFilter) {
+		super(WindowNo, tableName, keyColumn, queryValue, multipleSelection,
+				AD_InfoWindow_ID, lookup, field, predefinedContextVariables, sqlFilter);
 	}
-
 }

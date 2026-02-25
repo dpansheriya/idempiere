@@ -30,6 +30,7 @@ import org.compiere.util.CLogger;
 import org.compiere.util.CacheMgt;
 import org.compiere.util.DB;
 import org.compiere.util.DisplayType;
+import org.compiere.util.Msg;
 import org.compiere.util.Util;
 
 /**
@@ -46,7 +47,7 @@ public class MSysConfig extends X_AD_SysConfig
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = 5739824752288579881L;
+	private static final long serialVersionUID = -2345815648281241687L;
 
 	/** Constant for Predefine System Configuration Names (in alphabetical order) */
 	
@@ -58,19 +59,21 @@ public class MSysConfig extends X_AD_SysConfig
     public static final String ALLOW_OVER_APPLIED_PAYMENT = "ALLOW_OVER_APPLIED_PAYMENT";
     public static final String ALLOW_REVERSAL_OF_RECONCILED_PAYMENT = "ALLOW_REVERSAL_OF_RECONCILED_PAYMENT";
     public static final String ALogin_ShowDate = "ALogin_ShowDate";
-    @Deprecated(forRemoval = true, since = "11")
-    public static final String ALogin_ShowOneRole = "ALogin_ShowOneRole";
     public static final String APPLICATION_DATABASE_VERSION = "APPLICATION_DATABASE_VERSION";
     public static final String APPLICATION_DATABASE_VERSION_SHOWN = "APPLICATION_DATABASE_VERSION_SHOWN";
     public static final String APPLICATION_HOST_SHOWN = "APPLICATION_HOST_SHOWN";   
     public static final String APPLICATION_IMPLEMENTATION_VENDOR = "APPLICATION_IMPLEMENTATION_VENDOR";
     public static final String APPLICATION_IMPLEMENTATION_VENDOR_SHOWN = "APPLICATION_IMPLEMENTATION_VENDOR_SHOWN";
     public static final String APPLICATION_JVM_VERSION_SHOWN = "APPLICATION_JVM_VERSION_SHOWN";
+    public static final String APPLICATION_LOGIN_INFO_SHOWN = "APPLICATION_LOGIN_INFO_SHOWN";
+    public static final String APPLICATION_LOGIN_LEFT_PANEL_SHOWN = "APPLICATION_LOGIN_LEFT_PANEL_SHOWN";
     public static final String APPLICATION_MAIN_VERSION = "APPLICATION_MAIN_VERSION";
     public static final String APPLICATION_MAIN_VERSION_SHOWN = "APPLICATION_MAIN_VERSION_SHOWN";
     public static final String APPLICATION_OS_INFO_SHOWN = "APPLICATION_OS_INFO_SHOWN";
     public static final String APPLICATION_URL = "APPLICATION_URL";
     public static final String ATTACH_EMBEDDED_2PACK = "ATTACH_EMBEDDED_2PACK";
+    public static final String ATTACHMENT_SAVE_LIST_IN_AD_ATTACHMENTFILE = "ATTACHMENT_SAVE_LIST_IN_AD_ATTACHMENTFILE";
+    public static final String ATTACH_NOTIFY_2PACK = "ATTACH_NOTIFY_2PACK";
     public static final String AUTO_ASSIGN_ROLE_TO_CREATOR_USER = "AUTO_ASSIGN_ROLE_TO_CREATOR_USER";
     public static final String AUTOMATIC_PACKIN_FOLDERS = "AUTOMATIC_PACKIN_FOLDERS";
     public static final String AUTOMATIC_PACKIN_INITIAL_DELAY = "AUTOMATIC_PACKIN_INITIAL_DELAY";
@@ -92,6 +95,8 @@ public class MSysConfig extends X_AD_SysConfig
     public static final String CHECK_CREDIT_ON_CASH_POS_ORDER = "CHECK_CREDIT_ON_CASH_POS_ORDER";
     public static final String CHECK_CREDIT_ON_PREPAY_ORDER = "CHECK_CREDIT_ON_PREPAY_ORDER";
     public static final String CLIENT_ACCOUNTING = "CLIENT_ACCOUNTING";
+	public static final String COPY_TENANT_BATCH_FLUSH_SIZE = "COPY_TENANT_BATCH_FLUSH_SIZE";
+    public static final String CSV_EXPORT_SANITIZATION = "CSV_EXPORT_SANITIZATION";
     public static final String DASHBOARD_LAYOUT_ORIENTATION = "DASHBOARD_LAYOUT_ORIENTATION";
     public static final String DB_READ_REPLICA_NORMAL_MAX_ITERATIONS = "DB_READ_REPLICA_NORMAL_MAX_ITERATIONS";
     public static final String DB_READ_REPLICA_NORMAL_TIMEOUT_IN_MILLISECONDS = "DB_READ_REPLICA_NORMAL_TIMEOUT_IN_MILLISECONDS";
@@ -106,11 +111,13 @@ public class MSysConfig extends X_AD_SysConfig
     public static final String DPViews_ShowInfoAccount = "DPViews_ShowInfoAccount";
     public static final String DPViews_ShowInfoSchedule = "DPViews_ShowInfoSchedule";
     public static final String EMAIL_NOTIFY_2PACK = "EMAIL_NOTIFY_2PACK";
+    public static final String EMAIL_SERVER_START_ENABLED = "EMAIL_SERVER_START_ENABLED";
     public static final String EMAIL_TEST_MAILTEXT_ID = "EMAIL_TEST_MAILTEXT_ID";
     public static final String ENABLE_PAYMENTBOX_BUTTON = "ENABLE_PAYMENTBOX_BUTTON";
     public static final String ENABLE_SSO = "ENABLE_SSO";
     public static final String ENABLE_SSO_OSGI_CONSOLE = "ENABLE_SSO_OSGI_CONSOLE";
     public static final String ENABLE_SSO_IDEMPIERE_MONITOR = "ENABLE_SSO_IDEMPIERE_MONITOR";
+	public static final String SSO_SHOW_LOGINPAGE = "SSO_SHOW_LOGINPAGE";
     public static final String EXPORT_BLOB_COLUMN_FOR_INSERT = "EXPORT_BLOB_COLUMN_FOR_INSERT";
     public static final String FEEDBACK_EMAIL_CC = "FEEDBACK_EMAIL_CC";
     public static final String FEEDBACK_EMAIL_TO = "FEEDBACK_EMAIL_TO";
@@ -129,10 +136,6 @@ public class MSysConfig extends X_AD_SysConfig
     public static final String IBAN_VALIDATION = "IBAN_VALIDATION";
     public static final String IDENTIFIER_SEPARATOR = "IDENTIFIER_SEPARATOR";
     public static final String IMAGE_DB_STORAGE_SAVE_AS_ZIP = "IMAGE_DB_STORAGE_SAVE_AS_ZIP";
-    @Deprecated(forRemoval = true, since = "11")
-    public static final String INFO_DEFAULTSELECTED = "INFO_DEFAULTSELECTED";
-    @Deprecated(forRemoval = true, since = "11")
-    public static final String INFO_DOUBLECLICKTOGGLESSELECTION = "INFO_DOUBLECLICKTOGGLESSELECTION";
     public static final String INFO_PRODUCT_SHOW_PRODUCTS_WITHOUT_PRICE = "INFO_PRODUCT_SHOW_PRODUCTS_WITHOUT_PRICE";
     public static final String Invoice_ReverseUseNewNumber = "Invoice_ReverseUseNewNumber";
     public static final String JASPER_SWAP_MAX_PAGES = "JASPER_SWAP_MAX_PAGES";
@@ -153,7 +156,9 @@ public class MSysConfig extends X_AD_SysConfig
     public static final String MAIL_SEND_BCC_TO_ADDRESS = "MAIL_SEND_BCC_TO_ADDRESS";
     public static final String MAIL_SEND_BCC_TO_FROM = "MAIL_SEND_BCC_TO_FROM";
     public static final String MAIL_SEND_CREDENTIALS = "MAIL_SEND_CREDENTIALS";
+	public static final String MAIL_SMTP_CONNECTIONTIMEOUT = "MAIL_SMTP_CONNECTIONTIMEOUT";
     public static final String MAIL_SMTP_TIMEOUT = "MAIL_SMTP_TIMEOUT";
+	public static final String MAIL_SMTP_WRITETIMEOUT = "MAIL_SMTP_WRITETIMEOUT";
     public static final String MAX_ACTIVITIES_IN_LIST = "MAX_ACTIVITIES_IN_LIST";
     public static final String MAX_RESULTS_PER_SEARCH_IN_DOCUMENT_CONTROLLER = "MAX_RESULTS_PER_SEARCH_IN_DOCUMENT_CONTROLLER";
     public static final String MAX_ROWS_IN_TABLE_COMBOLIST = "MAX_ROWS_IN_TABLE_COMBOLIST";
@@ -184,11 +189,13 @@ public class MSysConfig extends X_AD_SysConfig
     public static final String PROJECT_ID_USER = "PROJECT_ID_USER";
     public static final String PROJECT_ID_WEBSITE = "PROJECT_ID_WEBSITE";
     public static final String QUICKFORM_PAGE_SIZE = "QUICKFORM_PAGE_SIZE";
+    public static final String READ_TABLES_NOT_IN_TABLE_ACCESS_INCLUDE_LIST = "READ_TABLES_NOT_IN_TABLE_ACCESS_INCLUDE_LIST";
     public static final String REAL_TIME_POS = "REAL_TIME_POS";
     public static final String RecentItems_MaxSaved = "RecentItems_MaxSaved";
     public static final String RecentItems_MaxShown = "RecentItems_MaxShown";
 	public static final String REPORT_LOAD_TIMEOUT_IN_SECONDS = "REPORT_LOAD_TIMEOUT_IN_SECONDS";
     public static final String REPORT_SWAP_MAX_ROWS = "REPORT_SWAP_MAX_ROWS";
+    public static final String SECURITY_DASHBOARD_LEGACY_KEY_WARNING = "SECURITY_DASHBOARD_LEGACY_KEY_WARNING";
     public static final String SHIPPING_DEFAULT_WEIGHT_PER_PACKAGE = "SHIPPING_DEFAULT_WEIGHT_PER_PACKAGE";
     public static final String STANDARD_REPORT_FOOTER_TRADEMARK_TEXT = "STANDARD_REPORT_FOOTER_TRADEMARK_TEXT";
     public static final String START_VALUE_BPLOCATION_NAME = "START_VALUE_BPLOCATION_NAME";
@@ -213,9 +220,11 @@ public class MSysConfig extends X_AD_SysConfig
     public static final String USER_LOCKING_MAX_PASSWORD_AGE_DAY = "USER_LOCKING_MAX_PASSWORD_AGE_DAY";
     public static final String USER_LOCKING_PASSWORD_NOTIFY_DAY = "USER_LOCKING_PASSWORD_NOTIFY_DAY";
     public static final String USER_PASSWORD_HASH = "USER_PASSWORD_HASH";
+    public static final String USER_PASSWORD_HASH_ALGORITHM = "USER_PASSWORD_HASH_ALGORITHM";
     public static final String VALIDATE_MATCHING_PRODUCT_ON_SHIPMENT = "VALIDATE_MATCHING_PRODUCT_ON_SHIPMENT";
     public static final String VALIDATE_MATCHING_TO_ORDERED_QTY = "VALIDATE_MATCHING_TO_ORDERED_QTY";
     public static final String WEBUI_LOGOURL = "WEBUI_LOGOURL";
+    public static final String XLSX_EXPORT_USE_FAST_METHOD = "XLSX_EXPORT_USE_FAST_METHOD";
     public static final String ZK_ADVANCE_FIND_FILTER_COLUMN_LIST = "ZK_ADVANCE_FIND_FILTER_COLUMN_LIST";
     public static final String ZK_AUTO_SAVE_CHANGES = "ZK_AUTO_SAVE_CHANGES";
     public static final String ZK_AUTO_SAVE_TABS_EXCLUDED = "ZK_AUTO_SAVE_TABS_EXCLUDED";
@@ -224,23 +233,26 @@ public class MSysConfig extends X_AD_SysConfig
     public static final String ZK_BUTTON_STYLE = "ZK_BUTTON_STYLE";
     public static final String ZK_DASHBOARD_CALENDAR_REQUEST_DISPLAY_MODE = "ZK_DASHBOARD_CALENDAR_REQUEST_DISPLAY_MODE";
     public static final String ZK_DASHBOARD_PERFORMANCE_REFRESH_INTERVAL = "ZK_DASHBOARD_PERFORMANCE_REFRESH_INTERVAL";
-    /** @deprecated not use for the new billboard implementation */
-    @Deprecated(forRemoval = true, since = "11")
-    public static final String ZK_DASHBOARD_PERFORMANCE_TIMEOUT = "ZK_DASHBOARD_PERFORMANCE_TIMEOUT";
     public static final String ZK_DASHBOARD_REFRESH_INTERVAL = "ZK_DASHBOARD_REFRESH_INTERVAL";
     public static final String ZK_DECIMALBOX_PROCESS_DOTKEYPAD = "ZK_DECIMALBOX_PROCESS_DOTKEYPAD";
+	public static final String ZK_DESKTOP_HEADER_BACKGROUND_COLOR = "ZK_DESKTOP_HEADER_BACKGROUND_COLOR"; // used in desktop.css.dsp
+	public static final String ZK_DESKTOP_HEADER_MESSAGE_VALUE = "ZK_DESKTOP_HEADER_MESSAGE_VALUE";
     public static final String ZK_DESKTOP_CLASS = "ZK_DESKTOP_CLASS";
     public static final String ZK_DESKTOP_SHOW_HOME_BUTTON = "ZK_DESKTOP_SHOW_HOME_BUTTON";
     public static final String ZK_DESKTOP_SHOW_TAB_LIST_BUTTON = "ZK_DESKTOP_SHOW_TAB_LIST_BUTTON";
     public static final String ZK_DESKTOP_TAB_AUTO_SHRINK_TO_FIT = "ZK_DESKTOP_TAB_AUTO_SHRINK_TO_FIT";
     public static final String ZK_DESKTOP_TAB_MAX_TITLE_LENGTH = "ZK_DESKTOP_TAB_MAX_TITLE_LENGTH";
     public static final String ZK_ERROR_MSG_LIFETIME_MILLISECONDS = "ZK_ERROR_MSG_LIFETIME_MILLISECONDS";
+    public static final String ZK_FIELD_LABEL_ABOVE_INPUT = "ZK_FIELD_LABEL_ABOVE_INPUT";
+    public static final String ZK_FIELD_MOBILE_LABEL_ABOVE_INPUT = "ZK_FIELD_MOBILE_LABEL_ABOVE_INPUT";
+    public static final String ZK_FIELD_MOBILE_SMALL_WIDTH_LABEL_ABOVE_INPUT = "ZK_FIELD_MOBILE_SMALL_WIDTH_LABEL_ABOVE_INPUT";
     public static final String ZK_FLAT_VIEW_MENU_TREE = "ZK_FLAT_VIEW_MENU_TREE";
     public static final String ZK_FOOTER_SERVER_DATETIME_FORMAT = "ZK_FOOTER_SERVER_DATETIME_FORMAT";
     public static final String ZK_FOOTER_SERVER_MSG = "ZK_FOOTER_SERVER_MSG";
     public static final String ZK_GRID_AFTER_FIND = "ZK_GRID_AFTER_FIND";
     public static final String ZK_GRID_AUTO_HIDE_EMPTY_COLUMNS = "ZK_GRID_AUTO_HIDE_EMPTY_COLUMNS";
     public static final String ZK_GRID_EDIT_MODELESS = "ZK_GRID_EDIT_MODELESS";
+    public static final String ZK_GRID_MOBILE_AUTO_HIDE_EMPTY_COLUMNS = "ZK_GRID_MOBILE_AUTO_HIDE_EMPTY_COLUMNS";
     public static final String ZK_GRID_MOBILE_EDITABLE = "ZK_GRID_MOBILE_EDITABLE";
     public static final String ZK_GRID_MOBILE_EDIT_MODELESS = "ZK_GRID_MOBILE_EDIT_MODELESS";
     public static final String ZK_GRID_MOBILE_LINE_BREAK_AS_IDENTIFIER_SEPARATOR = "ZK_GRID_MOBILE_LINE_BREAK_AS_IDENTIFIER_SEPARATOR";
@@ -249,6 +261,8 @@ public class MSysConfig extends X_AD_SysConfig
     public static final String ZK_GRID_VIEW_USE_DEFER_RENDERING = "ZK_GRID_VIEW_USE_DEFER_RENDERING";
     public static final String ZK_INFO_AUTO_COLLAPSED_PARAMETER_PANEL = "ZK_INFO_AUTO_COLLAPSED_PARAMETER_PANEL";
     public static final String ZK_INFO_AUTO_HIDE_EMPTY_COLUMNS = "ZK_INFO_AUTO_HIDE_EMPTY_COLUMNS";
+    public static final String ZK_INFO_MOBILE_AUTO_COLLAPSED_PARAMETER_PANEL = "ZK_INFO_MOBILE_AUTO_COLLAPSED_PARAMETER_PANEL";
+    public static final String ZK_INFO_MOBILE_AUTO_HIDE_EMPTY_COLUMNS = "ZK_INFO_MOBILE_AUTO_HIDE_EMPTY_COLUMNS";
     public static final String ZK_INFO_NUM_PAGE_PRELOAD = "ZK_INFO_NUM_PAGE_PRELOAD";
     public static final String ZK_INFO_QUERY_TIME_OUT =  "ZK_INFO_QUERY_TIME_OUT";
     public static final String ZK_LOGIN_ALLOW_CHROME_SAVE_PASSWORD = "ZK_LOGIN_ALLOW_CHROME_SAVE_PASSWORD";
@@ -268,9 +282,17 @@ public class MSysConfig extends X_AD_SysConfig
     public static final String ZK_ROOT_FOLDER_BROWSER = "ZK_ROOT_FOLDER_BROWSER";
     public static final String ZK_SEARCH_AUTO_COMPLETE_MAX_ROWS = "ZK_SEARCH_AUTO_COMPLETE_MAX_ROWS";
     public static final String ZK_SEQ_DEFAULT_VALUE_PANEL = "ZK_SEQ_DEFAULT_VALUE_PANEL";
+	public static final String ZK_SESSION_FINGERPRINT_CHECK_ACCEPT_LANGUAGE = "ZK_SESSION_FINGERPRINT_CHECK_ACCEPT_LANGUAGE";
+	public static final String ZK_SESSION_FINGERPRINT_CHECK_IP = "ZK_SESSION_FINGERPRINT_CHECK_IP";
+	public static final String ZK_SESSION_FINGERPRINT_CHECK_USER_AGENT = "ZK_SESSION_FINGERPRINT_CHECK_USER_AGENT";
+	public static final String ZK_SESSION_FINGERPRINT_ENABLED = "ZK_SESSION_FINGERPRINT_ENABLED";
+	public static final String ZK_SESSION_SAVE_JSESSIONID = "ZK_SESSION_SAVE_JSESSIONID";
+	public static final String ZK_SESSION_SAVE_USER_AGENT = "ZK_SESSION_SAVE_USER_AGENT";
     public static final String ZK_SESSION_TIMEOUT_IN_SECONDS = "ZK_SESSION_TIMEOUT_IN_SECONDS";
     public static final String ZK_THEME = "ZK_THEME";
     public static final String ZK_THEME_USE_FONT_ICON_FOR_IMAGE = "ZK_THEME_USE_FONT_ICON_FOR_IMAGE";
+    public static final String ZK_THUMBNAIL_IMAGE_HEIGHT = "ZK_THUMBNAIL_IMAGE_HEIGHT";
+    public static final String ZK_THUMBNAIL_IMAGE_WIDTH = "ZK_THUMBNAIL_IMAGE_WIDTH";
     public static final String ZK_TOOLBAR_SHOW_MORE_VERTICAL = "ZK_TOOLBAR_SHOW_MORE_VERTICAL";
     public static final String ZK_USE_PDF_JS_VIEWER = "ZK_USE_PDF_JS_VIEWER";
     public static final String ZOOM_ACROSS_QUERY_TIMEOUT = "ZOOM_ACROSS_QUERY_TIMEOUT";
@@ -364,7 +386,7 @@ public class MSysConfig extends X_AD_SysConfig
 	 * @return double
 	 * @deprecated replace by getBigDecimalValue
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static double getDoubleValue(String Name, double defaultValue)
 	{
 		String s = getValue(Name);
@@ -483,7 +505,7 @@ public class MSysConfig extends X_AD_SysConfig
 	 * @return double
 	 * @deprecated replace by getBigDecimalValue
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static double getDoubleValue(String Name, double defaultValue, int AD_Client_ID)
 	{
 		String s = getValue(Name, AD_Client_ID);
@@ -654,7 +676,7 @@ public class MSysConfig extends X_AD_SysConfig
 	 * @return double
 	 * @deprecated replace by getBigDecimalValue
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static double getDoubleValue(String Name, double defaultValue, int AD_Client_ID, int AD_Org_ID)
 	{
 		String s = getValue(Name, AD_Client_ID, AD_Org_ID);
@@ -871,13 +893,13 @@ public class MSysConfig extends X_AD_SysConfig
 				if (getAD_Org_ID() != 0 && 
 						(configLevel.equals(MSysConfig.CONFIGURATIONLEVEL_System) || 
 						 configLevel.equals(MSysConfig.CONFIGURATIONLEVEL_Client))) {
-					log.saveError( "Can't Save Org Level", "This is a system or tenant parameter, you can't save it as organization parameter" );
+					log.saveError( "Can't Save Org Level",Msg.getMsg(p_ctx, "ThisIsSystemOrTenantParameter"));
 					return false;
 				}
 
 				// Disallow saving client parameter if the system parameter is marked as 'S'
 				if (getAD_Client_ID() != 0 && configLevel.equals(MSysConfig.CONFIGURATIONLEVEL_System)) {
-					log.saveError( "Can't Save Tenant Level", "This is a system parameter, you can't save it as tenant parameter" );
+					log.saveError( "Can't Save Tenant Level",Msg.getMsg(p_ctx, "ThisIsSystemParameter"));
 					return false;
 				}
 
@@ -915,6 +937,14 @@ public class MSysConfig extends X_AD_SysConfig
 			// the reset cache is being called on PO when a record is changed or deleted, but not on new
 			// NOTE also that reset the specific ID doesn't work because the MSysConfig cache holds a
 			//   String type, and CCache.reset(int) just call reset when the key is not an Integer
+			Adempiere.getThreadPoolExecutor().submit(() -> CacheMgt.get().reset(Table_Name));
+		}
+		return success;
+	}
+
+	@Override
+	protected boolean afterDelete(boolean success) {
+		if (success && ! getName().endsWith("_NOCACHE")) {
 			Adempiere.getThreadPoolExecutor().submit(() -> CacheMgt.get().reset(Table_Name));
 		}
 		return success;

@@ -28,16 +28,21 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.adempiere.exceptions.AdempiereException;
 import org.apache.tools.ant.Project;
 import org.apache.tools.ant.Target;
 import org.apache.tools.ant.taskdefs.Zip;
+import org.compiere.print.layout.ImageElement;
 import org.compiere.tools.FileUtil;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
+import org.compiere.util.Msg;
+import org.compiere.util.Trx;
 import org.compiere.util.Util;
 
 /**
@@ -52,13 +57,15 @@ import org.compiere.util.Util;
  *
  *  @version $Id: MAttachment.java,v 1.4 2006/07/30 00:58:37 jjanke Exp $
  */
-public class MAttachment extends X_AD_Attachment
+public class MAttachment extends X_AD_Attachment implements AutoCloseable
 {
 	/**
-	 * generated serial id
+	 * 
 	 */
-	private static final long serialVersionUID = 5615231734722570658L;
+	private static final long serialVersionUID = 8842653136722756898L;
 
+	private static final String ATTACHMENT_URL_PREFIX = "attachment:";
+	
 	/**
 	 * @param ctx
 	 * @param AD_Table_ID
@@ -150,6 +157,7 @@ public class MAttachment extends X_AD_Attachment
 	 *	@param trxName transaction
 	 *  @deprecated Use {@link MAttachment#MAttachment(Properties, int, int, String, String)} instead
 	 */
+	@Deprecated (since="13", forRemoval=true)
 	public MAttachment(Properties ctx, int AD_Table_ID, int Record_ID, String trxName)
 	{
 		this(ctx, AD_Table_ID, Record_ID, null, trxName);
@@ -197,11 +205,15 @@ public class MAttachment extends X_AD_Attachment
 	}
 	
 	/** Indicator for no data   */
-	public static final String 	NONE = ".";
+	public static final String 	NONE = TITLE_None;
 	/** Indicator for zip data  */
-	public static final String 	ZIP = "zip";
-	/** Indicator for xml data (store on file system) */
-	public static final String 	XML = "xml";
+	public static final String 	ZIP = TITLE_ListInZIPFile;
+	/** Indicator for xml data (store on file system or external provider by plugin) */
+	public static final String 	XML = TITLE_ListInXML;
+	/** Indicator for list of files in AD_AttachmentFile */
+	public static final String 	LIST_IN_ATTACHMENT_FILE = TITLE_ListInAttachmentFile;
+
+	public static final String MIGRATE_STORAGE_DELETING_OLD_PROVIDER = "MIGRATE_STORAGE_DELETING_OLD_PROVIDER";
 
 	/**	List of Entry Data		*/
 	public ArrayList<MAttachmentEntry> m_items = null;
@@ -209,7 +221,58 @@ public class MAttachment extends X_AD_Attachment
 	/** string replaces the attachment root in stored xml file
 	 * to allow the changing of the attachment root. */
 	public final String ATTACHMENT_FOLDER_PLACEHOLDER = "%ATTACHMENT_FOLDER%";
-	
+
+	/* Attachment files can be read, but not written/deleted */
+	private Boolean isReadOnly = null;
+
+	/**
+	 * If the related record is on System and the user is operating on Tenant, the attachment is read-only
+	 * @return
+	 */
+	public boolean isReadOnly() {
+		return isReadOnly(false);
+	}
+
+	/**
+	 * If the related record is on System and the user is operating on Tenant, the attachment is read-only
+	 * @param isDelete
+	 * @return
+	 */
+	public boolean isReadOnly(boolean isDelete) {
+		if (isReadOnly == null) {
+			isReadOnly = true;
+			MTable table = MTable.get(getAD_Table_ID());
+			if (table != null) {
+				PO po = null;
+				if (! table.isIDKeyTable())
+					po = table.getPOByUU(getRecord_UU(), get_TrxName());
+				else
+					po = table.getPO(getRecord_ID(), get_TrxName());
+				if (isDelete && po == null) {
+					StringBuilder sqlExists = new StringBuilder("SELECT 1 FROM ")
+							.append(table.getTableName())
+							.append(" WHERE ");
+					int testExists = -1;
+					if (table.isUUIDKeyTable()) {
+						sqlExists.append(PO.getUUIDColumnName(table.getTableName())).append("=?");
+						testExists = DB.getSQLValueEx(get_TrxName(), sqlExists.toString(), getRecord_UU());
+					} else {
+						sqlExists.append(table.getKeyColumns()[0]).append("=?");
+						testExists = DB.getSQLValueEx(get_TrxName(), sqlExists.toString(), getRecord_ID());
+					}
+					if (testExists == -1) // Orphan Record, not read-only as it can be deleted
+						isReadOnly = false;
+				}
+				if (   po != null
+					&& ! po.is_new()
+					&& (   po.getAD_Client_ID() == Env.getAD_Client_ID(getCtx())
+						|| Env.getAD_Client_ID(getCtx()) == 0)) // System is allowed to migrate tenant attachments
+					isReadOnly = false;
+			}
+		}
+		return isReadOnly;
+	}
+
 	/**
 	 * Initialize storage provider
 	 * @param ctx
@@ -357,7 +420,20 @@ public class MAttachment extends X_AD_Attachment
 			return false;
 		return addEntry (new MAttachmentEntry (name, data));	//	random index
 	}	//	addEntry
-	
+
+    /**
+     * Add attachment entry
+     * @param name
+     * @param file
+     * @return true if success, false otherwise
+     */
+    public boolean addEntry(String name, File file)
+    {
+        if (name == null || file  == null)
+            return false;
+        return addEntry(new MAttachmentEntry(name, file));
+    }
+
 	/**
 	 * 	Add item to attachment
 	 * 	@param item attachment entry
@@ -369,7 +445,6 @@ public class MAttachment extends X_AD_Attachment
 		boolean retValue = false;
 		if (item == null)
 			return false;
-		item.getData(); // in case of lazy load enforce reading
 		if (m_items == null)
 			loadLOBData();
 		for (int i = 0; i < m_items.size(); i++) {
@@ -388,13 +463,14 @@ public class MAttachment extends X_AD_Attachment
 			 item.setIndex(m_items.size());
 		}
 		if (log.isLoggable(Level.FINE)) log.fine(item.toStringX());
-		setBinaryData(new byte[0]); // ATTENTION! HEAVY HACK HERE... Else it will not save :(
+		if (getTitle() == null || !getTitle().equals(MAttachment.TITLE_ListInAttachmentFile))
+			setBinaryData(new byte[0]); // ATTENTION! HEAVY HACK HERE... Else it will not save :(
 		return retValue || replaced;
 	}	//	addEntry
 
 	/**
 	 * 	Get Attachment Entry
-	 * 	@param index index of the item
+	 * 	@param index index of the item (zero base)
 	 * 	@return Entry or null
 	 */
 	public MAttachmentEntry getEntry (int index)
@@ -427,14 +503,19 @@ public class MAttachment extends X_AD_Attachment
 	 * @return true if deleted
 	 */
 	public boolean deleteEntry(int index) {
+		if (isReadOnly(false))
+			throw new AdempiereException(Msg.getMsg(getCtx(), "R/O"));
 		if (m_items == null)
 			loadLOBData();
 		if (index >= 0 && index < m_items.size()) {
 			IAttachmentStore prov = provider.getAttachmentStore();
 			if (prov != null)
 			{
-				if(prov.deleteEntry(this,provider,index))
-					return set_ValueNoCheck("Updated", new Timestamp(System.currentTimeMillis()));
+				if (prov.deleteEntry(this, provider, index)) {
+					if (!is_new() && getTitle() != null && !getTitle().equals(MAttachment.TITLE_ListInAttachmentFile))
+						set_ValueNoCheck("Updated", new Timestamp(System.currentTimeMillis()));
+					return true;
+				}
 				return false;
 			}
 			return false;
@@ -540,13 +621,14 @@ public class MAttachment extends X_AD_Attachment
 
 	/**
 	 * 	Save attachment content through storage provider
+     *  @param beforeSave true if call from beforeSave, false if call from afterSave
 	 *	@return true if saved
 	 */
-	private boolean saveLOBData()
+	private boolean saveLOBData(boolean beforeSave)
 	{
 		IAttachmentStore prov = provider.getAttachmentStore();
 		if (prov != null)
-			return prov.save(this,provider);
+			return prov.save(this,provider,beforeSave);
 		return false;
 	}
 	
@@ -562,9 +644,52 @@ public class MAttachment extends X_AD_Attachment
 		return false;
 	}
 
+	/**
+	 * Override save to handle LOB data when title is ListInAttachmentFile
+	 * When saving the attachment with title as ZIP or XML, it means the list of files are included in the zip file or in the XML file
+	 *  which is managed in the beforeSave and afterSave methods, so no need to handle here.
+	 * When saving as ListInAttachmentFile, before/after Save are not triggered because the Attachment record is not changed,
+	 *  so we need to override and manage the LOB data saving here.
+	 */
+	@Override
+	public boolean save() {
+		String local_trxName = null;
+		boolean success = false;
+		try {
+			if (get_TrxName() == null) {
+				local_trxName = Trx.createTrxName("MAttachmentSave");
+				set_TrxName(local_trxName);
+			}
+			if (   getTitle() != null
+				&& getTitle().equals(MAttachment.TITLE_ListInAttachmentFile)
+				&& !"Y".equals(get_Attribute(MIGRATE_STORAGE_DELETING_OLD_PROVIDER)))
+				if (!saveLOBData(true))		//	save in BinaryData
+					return false;
+			success = super.save();
+			if (success) {
+	    		if (getTitle() != null && getTitle().equals(MAttachment.TITLE_ListInAttachmentFile)
+	    				&& !"Y".equals(get_Attribute(MIGRATE_STORAGE_DELETING_OLD_PROVIDER)))
+	    			success = saveLOBData(false);
+	        }
+		} finally {
+	        if (local_trxName != null) {
+	        	Trx trx = Trx.get(local_trxName, false);
+	        	if (success)
+	        		trx.commit();
+	        	else
+	        		trx.rollback();
+	        	trx.close();
+	        	set_TrxName(null);
+	        }
+		}
+       	return success;
+	}
+
 	@Override
 	protected boolean beforeSave (boolean newRecord)
 	{
+		if (isReadOnly(false))
+			throw new AdempiereException(Msg.getMsg(getCtx(), "R/O"));
 		if (Util.isEmpty(getTitle()))
 			setTitle(NONE);
 		// Set Record_UU from Record_ID
@@ -574,8 +699,41 @@ public class MAttachment extends X_AD_Attachment
 			if (po != null)
 				setRecord_UU(po.get_UUID());
 		}
-		return saveLOBData();		//	save in BinaryData
+		if (getTitle() != null && getTitle().equals(MAttachment.TITLE_ListInAttachmentFile))
+			return true;
+		return saveLOBData(true);		//	save in BinaryData
 	}	//	beforeSave
+
+    @Override
+    protected boolean afterSave(boolean newRecord, boolean success) {
+        if (success) {
+    		if (getTitle() != null && getTitle().equals(MAttachment.TITLE_ListInAttachmentFile))
+    			return true;
+            return saveLOBData(false);
+        } else {
+            return false;
+        }
+    }
+
+    @Override
+	protected boolean beforeDelete() {
+		if (isReadOnly(true))
+			throw new AdempiereException(Msg.getMsg(getCtx(), "R/O"));
+		deleteAttachmentFiles();
+		return true;
+	}
+
+	/**
+	 * Delete the associated records in AD_AttachmentFile table
+	 */
+	public void deleteAttachmentFiles() {
+		List<MAttachmentFile> files = new Query(getCtx(), MAttachmentFile.Table_Name, "AD_Attachment_ID=?", get_TrxName())
+				.setParameters(getAD_Attachment_ID())
+				.list();
+		for (MAttachmentFile af : files) {
+			af.deleteEx(true);
+		}
+	}
 
 	/**
 	 * 	Ask storage provider to remove attachment content
@@ -613,25 +771,11 @@ public class MAttachment extends X_AD_Attachment
 		}
 		if (log.isLoggable(Level.FINE)) log.fine("updateEntry - " + file);
 		//
-		byte[] data = null;
-		try
-		{
-			FileInputStream fis = new FileInputStream (file);
-			ByteArrayOutputStream os = new ByteArrayOutputStream();
-			byte[] buffer = new byte[1024*8];   //  8kB
-			int length = -1;
-			while ((length = fis.read(buffer)) != -1)
-				os.write(buffer, 0, length);
-			fis.close();
-			data = os.toByteArray();
-			os.close();
-		}
-		catch (IOException ioe)
-		{
-			log.log(Level.SEVERE, "(file)", ioe);
-		}
-		return updateEntry (i, data);
-		
+        MAttachmentEntry entry = getEntry(i);
+        if (entry == null) return false;
+        entry.setFile(file);
+        entry.setUpdated(true);
+        return true;
 	}
 	
 	/**
@@ -657,6 +801,7 @@ public class MAttachment extends X_AD_Attachment
 	 * @return AD_Attachment_ID
  	 * @deprecated Use {@link MAttachment#getID(int, int, String)} instead
 	 */
+	@Deprecated (since="13", forRemoval=true)
 	public static int getID(int Table_ID, int Record_ID) {
 		String sql="SELECT AD_Attachment_ID FROM AD_Attachment WHERE AD_Table_ID=? AND Record_ID=?";
 		int attachid = DB.getSQLValue(null, sql, Table_ID, Record_ID);
@@ -708,15 +853,15 @@ public class MAttachment extends X_AD_Attachment
 		destZipFile.delete();
 
 		MAttachmentEntry[] entries = getEntries();
-		MAttachmentEntry entry = null;
-		int index = 0;
 
-		for (int i = 0; i < entries.length; i++) {
-			entry = entries[i];
-			index = i;
-			File destinationFile = new File(tempfolder, entry.getName());
-			FileUtil.copy(this, destinationFile, index);
-		}	
+        for (MAttachmentEntry entry : entries) {
+            File destinationFile = new File(tempfolder, entry.getName());
+            try {
+                Files.copy(entry.getInputStream(), destinationFile.toPath());
+            } catch (IOException e) {
+                throw new AdempiereException(e);
+            }
+        }
 
 		Zip zipper = new Zip();
 		zipper.setDestFile(destZipFile);
@@ -746,6 +891,171 @@ public class MAttachment extends X_AD_Attachment
 	public void setStorageProvider(MStorageProvider p) {
 		provider = p;
 		setAD_StorageProvider_ID(p.getAD_StorageProvider_ID());
+	}
+
+	/**
+	 * Get attachment data from path expression and id
+	 * @param path attachment/tableName/index or filename
+	 * @param id record id or record uuid
+	 * @return data of attachment item
+	 */
+	public static AttachmentData getAttachmentData(String path, Object id) {
+		String[] parts;
+		//record_id or record_uu
+		if ((id instanceof Number) || (id instanceof String)) {
+			parts = path.split("[/]");
+			//expression syntax - attachment/table name/index or name
+			if (parts.length == 3) {
+				String tableName = parts[1].trim();
+				MTable table = MTable.get(Env.getCtx(), tableName);
+				if (table != null) {
+					int recordId = (id instanceof Number) ? ((Number)id).intValue() : -1;
+					String recordUU = (id instanceof String) ? (String)id : null;
+					// check security
+					if (!MRole.getDefault().checkAccessSQL(table, recordId, recordUU, false))
+						return null;
+					try (MAttachment attachment = MAttachment.get(Env.getCtx(), table.get_ID(), recordId, recordUU, null);) {
+					if (attachment != null && attachment.get_ID() > 0) {
+						//first, check whether is via index
+						int index = -1;
+						parts[2] = parts[2].trim();
+						if (parts[2].matches("[0-9]+")) {
+							try {
+								index = Integer.parseInt(parts[2]);
+							} catch (Exception e) {
+							}
+						}
+						if (index >= 0 && index < attachment.getEntryCount()) {
+							return new AttachmentData(attachment.getEntryName(index), attachment.getEntryData(index));
+						}
+						//try name
+						String toMatch = null;
+						if (parts[2].contains("*")) {
+							//wildcard match, for e.g a*.png
+							Pattern regex = Pattern.compile("[^*]+|(\\*)");
+							Matcher m = regex.matcher(parts[2]);
+							StringBuffer b= new StringBuffer();
+							while (m.find()) {
+							    if(m.group(1) != null) m.appendReplacement(b, ".*");
+							    else m.appendReplacement(b, "\\\\Q" + m.group(0) + "\\\\E");
+							}
+							m.appendTail(b);
+							toMatch = b.toString();
+						}
+						for(int i = 0; i < attachment.getEntryCount(); i++) {
+							if (toMatch != null && attachment.getEntryName(i) != null && attachment.getEntryName(i).matches(toMatch)) {
+								return new AttachmentData(attachment.getEntryName(i), attachment.getEntryData(i));
+							} else if (parts[2].equals(attachment.getEntryName(i))) {
+								return new AttachmentData(attachment.getEntryName(i), attachment.getEntryData(i));
+							}
+						}								
+					}}
+				}
+			}
+		}
+		return null;
+	}
+	
+	/**
+	 * Get web image attachment url from attachment: expression
+	 * @param contextPath web context path (not needed for zk component, pass null instead)
+	 * @param path attachment:{tableName}/{index or filename pattern},{record id or uuid}
+	 * @return image attachment url
+	 */
+	public static String getImageAttachmentURLFromPath(String contextPath, String path) {
+		String[] part = path.trim().split(",");
+		if (part.length == 2)
+		{
+			part[1] = part[1].trim();
+			String expression = part[0].trim();
+			//convert from attachment: url syntax to attachment/ path syntax
+			expression = expression.replaceFirst("[:]", "/");
+			StringBuilder url = new StringBuilder(contextPath != null ? contextPath : "")
+					.append("/aimages?path=")
+					.append(expression)
+					.append("&recordid=")
+					.append(part[1]);
+			return url.toString();
+		}
+		return null;
+	}
+	
+	/**
+	 * Get web style sheet attachment url from attachment: expression
+	 * @param contextPath web context path (not needed for zk component, pass null instead)
+	 * @param path attachment:{tableName}/{index or filename pattern},{record id or uuid}
+	 * @return image attachment url
+	 */
+	public static String getStyleSheetAttachmentURLFromPath(String contextPath, String path) {
+		String[] part = path.trim().split(",");
+		if (part.length == 2)
+		{
+			part[1] = part[1].trim();
+			String expression = part[0].trim();
+			//convert from attachment: url syntax to attachment/ path syntax
+			expression = expression.replaceFirst("[:]", "/");
+			StringBuilder url = new StringBuilder(contextPath != null ? contextPath : "")
+					.append("/astyles?path=")
+					.append(expression)
+					.append("&recordid=")
+					.append(part[1]);
+			return url.toString();
+		}
+		return null;
+	}
+	
+	/**
+	 * Is attachment URL path 
+	 * @param path attachment:table/{index or file name pattern},{record id or uuid}
+	 * @return true if path is attachment path
+	 */
+	public static boolean isAttachmentURLPath(String path) {		
+		return path != null && path.startsWith(ATTACHMENT_URL_PREFIX) && path.indexOf(",") > 0;
+	}
+	
+	/**
+	 * Get attachment data from attachment URL path
+	 * @param path attachment:table/{index or file name pattern},{record id or uuid}
+	 * @return attachment data or null
+	 */
+	public static AttachmentData getDataFromAttachmentURLPath(String path) {
+		String[] part = path.trim().split(",");
+		if (part.length == 2)
+		{
+			part[1] = part[1].trim();
+			try {
+				String expression = part[0].trim();
+				//convert from attachment: url syntax to attachment/ path syntax
+				expression = expression.replaceFirst("[:]", "/");
+				Object key = part[1].length() == 36 ? part[1] : Integer.parseInt(part[1]);
+				AttachmentData imageData = MAttachment.getAttachmentData(expression, key);
+				return imageData;
+			} catch (Exception e) {
+				CLogger.getCLogger(ImageElement.class).log(Level.WARNING, e.getLocalizedMessage(), e);
+			}
+		}
+		return null;
+	}
+
+    @Override
+    public void close() {
+        if (m_items != null && !m_items.isEmpty()) {
+            for(MAttachmentEntry entry : m_items) {
+                entry.cleanUp();
+            }
+        }
+    }
+
+	/**
+	 * Get the list of attachment files from AD_AttachmentFile table
+	 * @return
+	 */
+	public List<MAttachmentFile> getAttachmentFiles() {
+		return new Query(getCtx(), MAttachmentFile.Table_Name, "AD_Attachment_ID=?", get_TrxName())
+				.setParameters(getAD_Attachment_ID())
+				.setOrderBy(MAttachmentFile.COLUMNNAME_SeqNo)
+				.setOnlyActiveRecords(true)
+				.list();
 	}
 
 }	//	MAttachment

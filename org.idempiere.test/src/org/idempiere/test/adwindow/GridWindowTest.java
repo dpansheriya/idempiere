@@ -24,26 +24,15 @@ package org.idempiere.test.adwindow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Optional;
 
 import org.adempiere.webui.apps.AEnv;
-import org.compiere.model.GridFieldVO;
-import org.compiere.model.GridWindowVO;
-import org.compiere.model.I_AD_Window;
-import org.compiere.model.MField;
-import org.compiere.model.MSession;
-import org.compiere.model.MTab;
-import org.compiere.model.MUserDefField;
-import org.compiere.model.MUserDefTab;
-import org.compiere.model.MUserDefWin;
-import org.compiere.model.SystemIDs;
-import org.compiere.util.CCache;
-import org.compiere.util.CacheInterface;
-import org.compiere.util.CacheMgt;
-import org.compiere.util.Env;
+import org.compiere.model.*;
+import org.compiere.util.*;
 import org.idempiere.test.AbstractTestCase;
 import org.idempiere.test.DictionaryIDs;
 import org.junit.jupiter.api.Test;
@@ -61,26 +50,25 @@ public class GridWindowTest extends AbstractTestCase {
 	@Test
 	public void testGridWindowCache() {
 		int testRecordIdFieldId = 207570; //advanced field
-		String gridWindowVOCacheName = I_AD_Window.Table_Name+"|GridWindowVO";
-		String gridTabVOsCacheName = "GridTabVOs Cache";
-		
+
 		//init static cache
 		GridWindowVO.get(SystemIDs.WINDOW_TEST, 0);
-		
+
 		//find cache via name
 		CCache<?, ?> gridTabVOsCache = null;
 		CCache<?, ?> gridWindowVOCache = null;
 		CacheInterface[] cacheInstances = CacheMgt.get().getInstancesAsArray();
 		for(CacheInterface cacheInstance : cacheInstances) {
 			if (cacheInstance instanceof CCache<?, ?> ccache) {
-				if (ccache.getName().equals(gridTabVOsCacheName)) {
+				if (ccache.getName().equals(GridWindowVO.GRID_TAB_VO_CACHE_NAME)) {
 					gridTabVOsCache = ccache;
-				} else if (ccache.getName().equals(gridWindowVOCacheName)) {
+				} else if (ccache.getName().equals(GridWindowVO.GRID_WINDOW_VO_CACHE_NAME)) {
 					gridWindowVOCache = ccache;
 				}
-			}			
+                if (gridTabVOsCache != null && gridWindowVOCache != null) break;
+			}
 		}
-		
+
 		assertNotNull(gridWindowVOCache, "Can't find cache for GridWindowVO");
 		assertNotNull(gridTabVOsCache, "Can't find cache for GridTabVOs");
 		gridWindowVOCache.reset();
@@ -217,6 +205,7 @@ public class GridWindowTest extends AbstractTestCase {
 		field.setName(customFieldName);
 		field.saveEx();
 		
+		CacheMgt.get().reset(MUserDefWin.Table_Name);
 		try {
 			//test with GARDEN_WORLD_ADMIN role
 			MSession.create(Env.getCtx());
@@ -276,5 +265,141 @@ public class GridWindowTest extends AbstractTestCase {
 			tab.deleteEx(true);
 			win.deleteEx(true);			
 		}
+	}
+
+    @Test
+    public void testGridTabContextInfo() {
+        //find cache via name
+        CCache<?, ?> gridTabVOsCache = null;
+        CCache<?, ?> gridWindowVOCache = null;
+        CacheInterface[] cacheInstances = CacheMgt.get().getInstancesAsArray();
+        for(CacheInterface cacheInstance : cacheInstances) {
+            if (cacheInstance instanceof CCache<?, ?> ccache) {
+                if (ccache.getName().equals(GridWindowVO.GRID_TAB_VO_CACHE_NAME)) {
+                    gridTabVOsCache = ccache;
+                } else if (ccache.getName().equals(GridWindowVO.GRID_WINDOW_VO_CACHE_NAME)) {
+                    gridWindowVOCache = ccache;
+                }
+                if (gridTabVOsCache != null && gridWindowVOCache != null) break;
+            }
+        }
+
+        if (gridWindowVOCache != null) {
+            gridWindowVOCache.reset();
+            assertNotNull(gridTabVOsCache);
+            gridTabVOsCache.reset();
+        }
+
+        //test without gridwindowvo and gridtabvo cache
+        GridWindowVO windowVO = GridWindowVO.create(Env.getCtx(), 1, SystemIDs.WINDOW_BUSINESS_PARTNER);
+        assertNotNull(windowVO.Tabs, "Failed to retrieve GridTabVOs");
+        assertFalse(windowVO.Tabs.isEmpty(), "Failed to retrieve GridTabVOs");
+        for (GridTabVO tab : windowVO.Tabs) {
+            assertFalse(Util.isEmpty(Env.getContext(Env.getCtx(), tab.WindowNo, tab.TabNo, GridTab.CTX_AD_Tab_ID)));
+            assertFalse(Util.isEmpty(Env.getContext(Env.getCtx(), tab.WindowNo, tab.TabNo, GridTab.CTX_AD_Tab_UU)));
+            assertFalse(Util.isEmpty(Env.getContext(Env.getCtx(), tab.WindowNo, tab.TabNo, GridTab.CTX_AD_Table_ID)));
+            assertFalse(Util.isEmpty(Env.getContext(Env.getCtx(), tab.WindowNo, tab.TabNo, GridTab.CTX_AD_Table_UU)));
+            assertFalse(Util.isEmpty(Env.getContext(Env.getCtx(), tab.WindowNo, tab.TabNo, GridTab.CTX_Name)));
+            assertFalse(Util.isEmpty(Env.getContext(Env.getCtx(), tab.WindowNo, tab.TabNo, GridTab.CTX_IsSortTab)));
+            assertFalse(Util.isEmpty(Env.getContext(Env.getCtx(), tab.WindowNo, tab.TabNo, GridTab.CTX_AccessLevel)));
+            assertFalse(Util.isEmpty(Env.getContext(Env.getCtx(), tab.WindowNo, tab.TabNo, GridTab.CTX_IsLookupOnlySelection)));
+            assertFalse(Util.isEmpty(Env.getContext(Env.getCtx(), tab.WindowNo, tab.TabNo, GridTab.CTX_IsAllowAdvancedLookup)));
+        }
+
+        //test with gridwindowvo and gridtabvo cache
+        windowVO = GridWindowVO.create(Env.getCtx(), 2, SystemIDs.WINDOW_BUSINESS_PARTNER);
+        assertNotNull(windowVO.Tabs, "Failed to retrieve GridTabVOs");
+        assertFalse(windowVO.Tabs.isEmpty(), "Failed to retrieve GridTabVOs");
+        for (GridTabVO tab : windowVO.Tabs) {
+            assertFalse(Util.isEmpty(Env.getContext(Env.getCtx(), tab.WindowNo, tab.TabNo, GridTab.CTX_AD_Tab_ID)));
+            assertFalse(Util.isEmpty(Env.getContext(Env.getCtx(), tab.WindowNo, tab.TabNo, GridTab.CTX_AD_Tab_UU)));
+            assertFalse(Util.isEmpty(Env.getContext(Env.getCtx(), tab.WindowNo, tab.TabNo, GridTab.CTX_AD_Table_ID)));
+            assertFalse(Util.isEmpty(Env.getContext(Env.getCtx(), tab.WindowNo, tab.TabNo, GridTab.CTX_AD_Table_UU)));
+            assertFalse(Util.isEmpty(Env.getContext(Env.getCtx(), tab.WindowNo, tab.TabNo, GridTab.CTX_Name)));
+            assertFalse(Util.isEmpty(Env.getContext(Env.getCtx(), tab.WindowNo, tab.TabNo, GridTab.CTX_IsSortTab)));
+            assertFalse(Util.isEmpty(Env.getContext(Env.getCtx(), tab.WindowNo, tab.TabNo, GridTab.CTX_AccessLevel)));
+            assertFalse(Util.isEmpty(Env.getContext(Env.getCtx(), tab.WindowNo, tab.TabNo, GridTab.CTX_IsLookupOnlySelection)));
+            assertFalse(Util.isEmpty(Env.getContext(Env.getCtx(), tab.WindowNo, tab.TabNo, GridTab.CTX_IsAllowAdvancedLookup)));
+        }
+    }
+    
+    @Test
+    void testGetGridTabByUU() {
+    	var gridWindow = createGridWindow(SystemIDs.WINDOW_TEST);
+    	var gTab = gridWindow.getTab(0);
+    	var gTabByUU = gridWindow.getGridTab(gTab.getAD_Tab_UU());
+    	assertEquals(gTab, gTabByUU);
+    	assertNull(gridWindow.getGridTab(gTab.getAD_Tab_UU()+"x"));
+    }
+    
+    @Test
+    void testGetGridTabById() {
+    	var gridWindow = createGridWindow(SystemIDs.WINDOW_TEST);
+    	var gTab = gridWindow.getTab(0);
+    	var gTabById = gridWindow.getGridTab(gTab.getAD_Tab_ID());
+    	assertEquals(gTab, gTabById);
+    	assertNull(gridWindow.getGridTab(gTab.getAD_Tab_ID()+1000));
+    }
+
+    @Test
+    void testQueryFirstTab() {
+    	var gridWindow = createGridWindow(SystemIDs.WINDOW_TEST);
+    	gridWindow.query();
+    	assertTrue(gridWindow.getTab(0).getRowCount() > 0);
+    }
+    
+    @Test
+    void testGetNewInstance() {
+    	var gridWindow = GridWindow.get(Env.getCtx(), 1, SystemIDs.WINDOW_TEST);
+    	assertNotNull(gridWindow);
+    	assertEquals(SystemIDs.WINDOW_TEST, gridWindow.getAD_Window_ID());
+    }
+    
+    @Test
+    void testIsTabInitialized() {
+		var gridWindow = createGridWindow(SystemIDs.WINDOW_TEST);
+		assertTrue(gridWindow.isTabInitialized(0));
+		gridWindow = GridWindow.get(Env.getCtx(), 1, SystemIDs.WINDOW_TEST);
+		assertFalse(gridWindow.isTabInitialized(0));
+	}
+    
+    @Test
+    void testGetMImage() {
+    	var gridWindow = createGridWindow(SystemIDs.WINDOW_BUSINESS_PARTNER);
+    	assertNotNull(gridWindow.getMImage());
+    }
+    
+    @Test
+    void testIsTransaction() {
+    	var gridWindow = createGridWindow(SystemIDs.WINDOW_BUSINESS_PARTNER);
+    	assertFalse(gridWindow.isTransaction());
+    	gridWindow = createGridWindow(SystemIDs.WINDOW_SALES_ORDER);
+    	assertTrue(gridWindow.isTransaction());
+    }
+    
+    @Test
+    void testToString() {
+		var gridWindow = createGridWindow(SystemIDs.WINDOW_BUSINESS_PARTNER);
+		assertTrue(gridWindow.toString().contains(SystemIDs.WINDOW_BUSINESS_PARTNER+""));
+	}
+    
+    @Test
+    void testCreateVOFromMenu() {
+    	int menuID = DB.getSQLValue(null, "SELECT AD_Menu_ID FROM AD_Menu WHERE AD_Window_ID = ?", SystemIDs.WINDOW_TEST);
+    	assertTrue(menuID > 0, "No menu found for test window");
+    	var gWindowVO = GridWindowVO.create(Env.getCtx(), 1, 0, menuID);
+    	assertNotNull(gWindowVO);
+    	assertEquals(SystemIDs.WINDOW_TEST, gWindowVO.AD_Window_ID);
+    }
+    
+	static GridWindow createGridWindow(int AD_Window_ID) {
+		var gWindowVO = GridWindowVO.create(Env.getCtx(), 1, AD_Window_ID);
+		var gridWindow = new GridWindow(gWindowVO, true);
+		for (int i = 0; i < gridWindow.getTabCount(); i++) {
+			gridWindow.initTab(i);
+			GridTab gTab = gridWindow.getTab(i);
+			gTab.addDataStatusListener(GridTabTest.newGridTabDataStatusListener(gridWindow));
+		}
+		return gridWindow;
 	}
 }

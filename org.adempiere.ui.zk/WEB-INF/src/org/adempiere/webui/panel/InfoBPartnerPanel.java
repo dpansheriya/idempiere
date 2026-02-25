@@ -39,11 +39,11 @@ import org.compiere.minigrid.ColumnInfo;
 import org.compiere.minigrid.IDColumn;
 import org.compiere.model.MBPartner;
 import org.compiere.model.MQuery;
-import org.compiere.util.CLogger;
 import org.compiere.util.Env;
 import org.compiere.util.KeyNamePair;
 import org.compiere.util.Msg;
 import org.compiere.util.Util;
+import org.idempiere.db.util.SQLFragment;
 import org.zkoss.zk.ui.event.Event;
 import org.zkoss.zk.ui.event.EventListener;
 import org.zkoss.zk.ui.event.Events;
@@ -65,7 +65,7 @@ import org.zkoss.zul.Vbox;
 * 	@version	InfoBPartner.java Adempiere Swing UI 3.4.1 
 */
 
-@Deprecated // replaced with InfoBPartnerWindow IDEMPIERE-325
+@Deprecated (since="13", forRemoval=true) // replaced with InfoBPartnerWindow IDEMPIERE-325
 public class InfoBPartnerPanel extends InfoPanel implements EventListener<Event>, WTableModelListener
 {
 	/**
@@ -93,8 +93,6 @@ public class InfoBPartnerPanel extends InfoPanel implements EventListener<Event>
 	/** SalesOrder Trx          */
 	private boolean 		m_isSOTrx;
 		
-	/**	Logger			*/
-	protected transient CLogger log = CLogger.getCLogger(getClass());
 	private Borderlayout layout;
 	private Vbox southBody;
 	
@@ -136,8 +134,18 @@ public class InfoBPartnerPanel extends InfoPanel implements EventListener<Event>
 	}
 
 	/**
-	 *	Standard Constructor
+	 * Standard Constructor
+	 * @param queryValue   Query value Name or Value if contains numbers
+	 * @param windowNo
+	 * @param isSOTrx  if false, query vendors only
+	 * @param multipleSelection
+	 * @param sqlFilter
 	 */
+	public InfoBPartnerPanel(String queryValue,int windowNo, boolean isSOTrx,boolean multipleSelection, SQLFragment sqlFilter)
+	{		
+		this(queryValue, windowNo, isSOTrx, multipleSelection, true, sqlFilter);
+	}
+	
 	/**
 	 * @param queryValue   Query value Name or Value if contains numbers
 	 * @param windowNo
@@ -148,13 +156,25 @@ public class InfoBPartnerPanel extends InfoPanel implements EventListener<Event>
 	 */
 	public InfoBPartnerPanel(String queryValue,int windowNo, boolean isSOTrx,boolean multipleSelection, String whereClause, boolean lookup)
 	{
+		this(queryValue, windowNo, isSOTrx, multipleSelection, lookup, new SQLFragment(whereClause));
+	}
+	
+	/**
+	 * @param queryValue   Query value Name or Value if contains numbers
+	 * @param windowNo
+	 * @param isSOTrx  if false, query vendors only
+	 * @param multipleSelection
+	 * @param lookup
+	 */
+	public InfoBPartnerPanel(String queryValue,int windowNo, boolean isSOTrx,boolean multipleSelection, boolean lookup, SQLFragment sqlFilter)
+	{
 
-		super (windowNo, "C_BPartner", "C_BPartner_ID",multipleSelection, whereClause, lookup);
+		super (windowNo, "C_BPartner", "C_BPartner_ID",multipleSelection, lookup, sqlFilter);
 		setTitle(Msg.getMsg(Env.getCtx(), "InfoBPartner"));
 		m_isSOTrx = isSOTrx;
         initComponents();
         init();
-		initInfo(queryValue, whereClause);
+		initInfo(queryValue, sqlFilter);
         
         int no = contentPanel.getRowCount();
         setStatusLine(Integer.toString(no) + " " + Msg.getMsg(Env.getCtx(), "SearchRows_EnterQuery"), false);
@@ -186,22 +206,22 @@ public class InfoBPartnerPanel extends InfoPanel implements EventListener<Event>
 		
 		fieldValue = new Textbox();
 		fieldValue.setMaxlength(40);
-		fieldValue.setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "value");
+		fieldValue.setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "value");
 		fieldName = new Textbox();
 		fieldName.setMaxlength(40);
-		fieldName.setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "name");
+		fieldName.setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "name");
 		fieldContact = new Textbox();
 		fieldContact.setMaxlength(40);
-		fieldContact.setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "contact");
+		fieldContact.setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "contact");
 		fieldEMail = new Textbox();
 		fieldEMail.setMaxlength(40);
-		fieldEMail.setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "email");
+		fieldEMail.setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "email");
 		fieldPostal = new Textbox();
 		fieldPostal.setMaxlength(40);
-		fieldPostal.setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "postal");
+		fieldPostal.setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "postal");
 		fieldPhone = new Textbox();		
 		fieldPhone.setMaxlength(40);
-		fieldPhone.setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "phone");
+		fieldPhone.setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "phone");
 		
 		checkAND = new Checkbox();
 		checkAND.setLabel(Msg.getMsg(Env.getCtx(), "SearchAND", true));
@@ -227,7 +247,7 @@ public class InfoBPartnerPanel extends InfoPanel implements EventListener<Event>
 		ZKUpdateUtil.setHflex(fieldPostal, "1");
 		
 		Grid grid = GridFactory.newGridLayout();
-		grid.setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "infoParameterPanel");
+		grid.setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "infoParameterPanel");
 		
 		Rows rows = new Rows();
 		grid.appendChild(rows);
@@ -293,10 +313,10 @@ public class InfoBPartnerPanel extends InfoPanel implements EventListener<Event>
 	/**
 	 *	Dynamic Init
 	 *  @param value value
-	 *  @param whereClause where clause
+	 *  @param sqlFilter where clause
 	 */
 		
-	private void initInfo(String value, String whereClause)
+	private void initInfo(String value, SQLFragment sqlFilter)
 	{
 			/**	From
 				C_BPartner
@@ -308,12 +328,12 @@ public class InfoBPartnerPanel extends InfoPanel implements EventListener<Event>
 			//	Create Grid
 			StringBuilder where = new StringBuilder();
 			where.append("C_BPartner.IsSummary='N' AND C_BPartner.IsActive='Y'");
-			if (whereClause != null && whereClause.length() > 0)
-				where.append(" AND ").append(whereClause);
+			if (sqlFilter != null && sqlFilter.sqlClause().length() > 0)
+				where.append(" AND ").append(sqlFilter.sqlClause());
 			//
-                          
-			prepareTable(s_partnerLayout, s_partnerFROM, where.toString(), "C_BPartner.Value");
-			
+
+			prepareTable(s_partnerLayout, s_partnerFROM, "C_BPartner.Value", new SQLFragment(where.toString(), sqlFilter != null ? sqlFilter.parameters() : null));
+
 			// Get indexes
             for (int i = 0; i < p_layout.length; i++)
             {

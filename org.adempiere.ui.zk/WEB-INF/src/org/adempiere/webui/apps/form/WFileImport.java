@@ -29,9 +29,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 
 import org.adempiere.webui.AdempiereWebUI;
+import org.adempiere.webui.apps.AEnv;
 import org.adempiere.webui.component.Button;
 import org.adempiere.webui.component.ConfirmPanel;
 import org.adempiere.webui.component.Label;
@@ -45,12 +47,14 @@ import org.adempiere.webui.util.ZKUpdateUtil;
 import org.adempiere.webui.window.Dialog;
 import org.compiere.impexp.ImpFormat;
 import org.compiere.impexp.ImpFormatRow;
+import org.compiere.model.MQuery;
 import org.compiere.model.MRole;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.compiere.util.Ini;
 import org.compiere.util.Msg;
+import org.idempiere.db.util.SQLFragment;
 import org.zkoss.util.media.Media;
 import org.zkoss.zk.ui.Executions;
 import org.zkoss.zk.ui.event.Event;
@@ -255,8 +259,7 @@ public class WFileImport extends ADForm implements EventListener<Event>
 	
 	/**
 	 *	Dynamic Init
-	 */
-	
+	 */	
 	private void dynInit()
 	{
 		//	Load Formats
@@ -308,7 +311,7 @@ public class WFileImport extends ADForm implements EventListener<Event>
 		confirmPanel.setEnabled("Ok", false);
 	}	//	dynInit
 
-	
+	@Override
 	public void onEvent(Event e) throws Exception 
 	{
 		if (e instanceof UploadEvent) 
@@ -403,8 +406,7 @@ public class WFileImport extends ADForm implements EventListener<Event>
 	
 	/**
 	 * Reload/Load file
-	 */
-	
+	 */	
 	private void cmd_reloadFile()
 	{
 		if (m_file_istream == null)
@@ -471,8 +473,7 @@ public class WFileImport extends ADForm implements EventListener<Event>
 
 	/**
 	 *	Load Format
-	 */
-	
+	 */	
 	private void cmd_loadFormat()
 	{
 		//	clear panel
@@ -580,10 +581,9 @@ public class WFileImport extends ADForm implements EventListener<Event>
 		}
 	}	//	cmd_applyFormat
 
-	/**************************************************************************
+	/**
 	 *	Process File
-	 */
-	
+	 */	
 	private void cmd_process()
 	{
 		if (m_format == null)
@@ -602,9 +602,18 @@ public class WFileImport extends ADForm implements EventListener<Event>
 		for (row = 0; row < m_data.size(); row++)
 			if (m_format.updateDB(Env.getCtx(), m_data.get(row).toString(), null))
 				imported++;
-		
-		Dialog.info(m_WindowNo, "FileImportR/I", row + " / " + imported + "#");
-		
-		SessionManager.getAppDesktop().closeActiveWindow();
+
+		final int importedFinal = imported;
+		Dialog.info(m_WindowNo, "FileImportR/I", row + " / " + imported + "#", Msg.getMsg(Env.getCtx(), "FileImport"),
+			    result -> {
+			        if (importedFinal > 0) {
+			            MQuery query = new MQuery(m_format.getAD_Table_ID());
+			            query.addRestriction(new SQLFragment("I_IsImported=?", List.of("N")));
+			            AEnv.zoom(m_format.getAD_Table_ID(), 0, query);
+			        }
+			    });
+
+		if (imported > 0)
+			SessionManager.getAppDesktop().closeActiveWindow();
 	}	//	cmd_process
 }

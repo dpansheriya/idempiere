@@ -23,7 +23,6 @@ import org.zkoss.zul.Div;
  * Extend {@link Div}
  * @author  <a href="mailto:agramdass@gmail.com">Ashley G Ramdass</a>
  * @date    Feb 25, 2007
- * @version $Revision: 0.10 $
  */
 public class Panel extends Div 
 {
@@ -32,10 +31,10 @@ public class Panel extends Div
 	 */
 	private static final long serialVersionUID = -5549821938132356378L;
 
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static final String HORIZONTAL       = "horizontal";
 
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
     public static final String VERTICAL         = "vertical";
     
     /**

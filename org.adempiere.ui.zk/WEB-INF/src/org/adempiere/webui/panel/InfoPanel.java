@@ -88,6 +88,7 @@ import org.compiere.model.MProcess;
 import org.compiere.model.MRefTable;
 import org.compiere.model.MRole;
 import org.compiere.model.MStatusLine;
+import org.compiere.model.MStyle;
 import org.compiere.model.MSysConfig;
 import org.compiere.model.MTable;
 import org.compiere.model.X_AD_CtxHelp;
@@ -96,6 +97,7 @@ import org.compiere.process.ProcessInfoLog;
 import org.compiere.process.ProcessInfoUtil;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
+import org.compiere.util.DefaultEvaluatee;
 import org.compiere.util.DisplayType;
 import org.compiere.util.Env;
 import org.compiere.util.KeyNamePair;
@@ -104,6 +106,7 @@ import org.compiere.util.NamePair;
 import org.compiere.util.Trx;
 import org.compiere.util.Util;
 import org.compiere.util.ValueNamePair;
+import org.idempiere.db.util.SQLFragment;
 import org.zkoss.zk.au.out.AuEcho;
 import org.zkoss.zk.ui.Component;
 import org.zkoss.zk.ui.Executions;
@@ -126,9 +129,10 @@ import org.zkoss.zul.event.ZulEvents;
 import org.zkoss.zul.ext.Sortable;
 
 /**
- * Search dialog that works in two mode. <br/>
- * Lookup mode: Search and return selection to lookup field. <br/>
- * Window mode: Search and view search results. Optional support for execution of process.
+ * Abstract base class for info panel and info window.<br/>
+ * Info window that works in two mode. <br/>
+ * Lookup mode: Popup dialog for a field. Search and return selection to lookup field. <br/>
+ * Viewing mode: Independent popup or embedded window. Search and view search results. Optional support for execution of process.
  *
  * @author Sendy Yagambrum
  * @author Elaine
@@ -145,7 +149,7 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 	protected static final String INFO_QUERY_TIME_OUT_ERROR = "InfoQueryTimeOutError";
 	protected static final String COLUMN_VISIBLE_ORIGINAL = "column.visible.original";
 	protected static final String ROW_CTX_VARIABLE_PREFIX = "_IWInfo_";
-	protected static final String ROW_ID_CTX_VARIABLE_NAME = "_IWInfoIDs_Selected";
+	public static final String ROW_ID_CTX_VARIABLE_NAME = "_IWInfoIDs_Selected";
 	
 	private final static int DEFAULT_PAGE_SIZE = 100;
 	private final static int DEFAULT_PAGE_PRELOAD = 4;
@@ -275,6 +279,13 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 				lookup, 0);
 	}
 	
+	protected InfoPanel (int WindowNo,
+			String tableName, String keyColumn,boolean multipleSelection,
+			 boolean lookup, SQLFragment sqlFilter){
+		this(WindowNo, tableName, keyColumn, multipleSelection, 
+				lookup, 0, sqlFilter);
+	}
+	
 	/**
 	 * @param WindowNo
 	 * @param tableName
@@ -292,6 +303,22 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 				whereClause, lookup, ADInfoWindowID, null);
 	}
 	
+	protected InfoPanel (int WindowNo,
+			String tableName, String keyColumn,boolean multipleSelection,
+			 boolean lookup, int ADInfoWindowID, SQLFragment sqlFilter)
+	{
+		this(WindowNo, tableName, keyColumn, multipleSelection, 
+				lookup, ADInfoWindowID, null, sqlFilter);
+	}
+	
+	protected InfoPanel (int WindowNo,
+			String tableName, String keyColumn,boolean multipleSelection,
+			 String whereClause, boolean lookup, int ADInfoWindowID, String queryValue)
+	{
+		this(WindowNo, tableName, keyColumn, multipleSelection, 
+			lookup, ADInfoWindowID, queryValue, (!Util.isEmpty(whereClause, true) ? new SQLFragment(whereClause) : null));
+	}
+	
 	/**
      * @param WindowNo  WindowNo
      * @param tableName tableName
@@ -304,7 +331,7 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 	 */
 	protected InfoPanel (int WindowNo,
 		String tableName, String keyColumn,boolean multipleSelection,
-		 String whereClause, boolean lookup, int ADInfoWindowID, String queryValue)
+		boolean lookup, int ADInfoWindowID, String queryValue, SQLFragment sqlFilter)
 	{				
 		if (WindowNo <= 0) {
 			p_WindowNo = SessionManager.getAppDesktop().registerWindow(this);
@@ -313,7 +340,7 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 			p_WindowNo = WindowNo;
 		}
 		if (log.isLoggable(Level.INFO))
-			log.info("WinNo=" + WindowNo + " " + whereClause);
+			log.info("WinNo=" + WindowNo + " " + sqlFilter);
 		p_tableName = tableName;
 		this.m_infoWindowID = ADInfoWindowID;
 		p_keyColumn = keyColumn;
@@ -327,14 +354,33 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
         setMultipleSelection(multipleSelection);
         m_lookup = lookup;
         loadInfoWindowData();
+        String whereClause = sqlFilter != null ? sqlFilter.sqlClause() : null;
 		if (whereClause == null || whereClause.indexOf('@') == -1)
-			p_whereClause = whereClause == null ? "" : whereClause;
+			p_sqlFilter = sqlFilter;
+		else if (sqlFilter != null)
+		{
+			List<Object> params = new ArrayList<Object>();
+			String preParsedWhere = whereClause;
+			whereClause = Env.parseContextForSql(Env.getCtx(), p_WindowNo, whereClause, false, false, params);
+			if (whereClause.length() == 0)
+			{
+				log.log(Level.SEVERE, "Cannot parse context= " + sqlFilter.sqlClause());
+				p_sqlFilter = null;
+			}
+			else
+			{
+				if (sqlFilter.parameters().size() > 0)
+				{
+					params = Env.mergeParameters(preParsedWhere, whereClause, sqlFilter.parameters().toArray(), params.toArray());
+				}
+				p_sqlFilter = new SQLFragment(whereClause, params);
+			}
+		}
 		else
 		{
-			p_whereClause = Env.parseContext(Env.getCtx(), p_WindowNo, whereClause, false, false);
-			if (p_whereClause.length() == 0)
-				log.log(Level.SEVERE, "Cannot parse context= " + whereClause);
+			p_sqlFilter = null;
 		}
+		p_whereClause = p_sqlFilter != null ? p_sqlFilter.toSQLWithParameters() : "";
 
 		pageSize = MSysConfig.getIntValue(MSysConfig.ZK_PAGING_SIZE, DEFAULT_PAGE_SIZE, Env.getAD_Client_ID(Env.getCtx()));
 		if (infoWindow != null && infoWindow.getPagingSize() > 0)
@@ -348,7 +394,7 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 			}
 		});
 		
-		setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "infopanel");
+		setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "infopanel");
 		
 		addEventListener(WindowContainer.ON_WINDOW_CONTAINER_SELECTION_CHANGED_EVENT, this);
 		addEventListener(ON_RUN_PROCESS, this);
@@ -475,7 +521,7 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
         if (isLookup())
         	addEventListener(Events.ON_CANCEL, this);
         contentPanel.setOddRowSclass(null);
-        contentPanel.setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "infoListbox");
+        contentPanel.setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "infoListbox");
         contentPanel.addEventListener("onAfterRender", this);
         contentPanel.setSclass("z-word-nowrap");
         
@@ -492,7 +538,9 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 	/** Enable more than one selection  */
 	protected boolean			p_multipleSelection;
 	/** Initial WHERE Clause    */
+	@Deprecated (since="13", forRemoval=true)
 	protected String			p_whereClause = "";
+	protected SQLFragment		p_sqlFilter = null;
 	protected StatusBarPanel statusBar = new StatusBarPanel();
 	/**                    */
     private List<Object> line;
@@ -508,9 +556,13 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 	/** Layout of {@link #contentPanel}     */
 	protected ColumnInfo[]     p_layout;
 	/** Main SQL Statement      */
+	@Deprecated (since="13", forRemoval=true)
 	protected String              m_sqlMain;
+	protected SQLFragment         m_sqlFragmentMain;
 	/** Count SQL Statement		*/
+	@Deprecated (since="13", forRemoval=true)
 	protected String              m_sqlCount;
+	protected SQLFragment         m_sqlFragmentCount;
 	/** Order By Clause         */
 	protected String              m_sqlOrder;
 	private String              m_sqlUserOrder;
@@ -564,7 +616,9 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 	/**
 	 * saved where clause of previous query
 	 */
+	@Deprecated (since="13", forRemoval=true)
 	protected String prevWhereClause = null;
+	protected SQLFragment prevSQLFilter = null;
 	/**
 	 * saved value of previous query parameters
 	 */
@@ -713,22 +767,42 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 	 * @param from
 	 * @param where
 	 * @param orderBy
+	 * @deprecated use {@link #prepareTable(ColumnInfo[], String, String, SQLFragment)} instead
 	 */
+	@Deprecated (since="13", forRemoval=true)
 	protected void prepareTable (ColumnInfo[] layout,
             String from,
             String where,
             String orderBy)
 	{
-        String sql =contentPanel.prepareTable(layout, from,
-                where,p_multipleSelection,
-                getTableName(),false);
+		prepareTable(layout, from, orderBy, new SQLFragment(where));
+	}
+	
+	/**
+	 * set up list box and construct sql clause
+	 * @param layout
+	 * @param from
+	 * @param orderBy
+	 * @param sqlFilter
+	 */
+	protected void prepareTable (ColumnInfo[] layout,
+            String from,
+            String orderBy,
+            SQLFragment sqlFilter)
+	{
+        SQLFragment sqlFragment = contentPanel.prepareTable(layout, from,
+                p_multipleSelection,
+                getTableName(),false, sqlFilter);
         if (infoWindow != null)	
         	contentPanel.setwListBoxName("AD_InfoWindow_UU|"+ infoWindow.getAD_InfoWindow_UU() );
         else
 	    	contentPanel.setwListBoxName("AD_InfoPanel|"+ from );
         p_layout = contentPanel.getLayout();
-		m_sqlMain = sql;
-		m_sqlCount = "SELECT COUNT(*) FROM " + from + " WHERE " + where;
+        m_sqlFragmentMain = sqlFragment;
+		m_sqlMain = m_sqlFragmentMain.toSQLWithParameters();
+		m_sqlFragmentCount = new SQLFragment("SELECT COUNT(*) FROM " + from + " WHERE " + (sqlFilter != null ? sqlFilter.sqlClause() : ""), 
+				sqlFilter != null ? sqlFilter.parameters() : List.of());
+		m_sqlCount = m_sqlFragmentCount.toSQLWithParameters();
 		//
 		m_sqlOrder = "";
 		if (orderBy != null && orderBy.trim().length() > 0)
@@ -1093,7 +1167,10 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 	 * @return true if info window should auto hide empty columns
 	 */
 	protected boolean isAutoHideEmptyColumns() {
-		return MSysConfig.getBooleanValue(MSysConfig.ZK_INFO_AUTO_HIDE_EMPTY_COLUMNS, false, Env.getAD_Client_ID(Env.getCtx()));
+		if (ClientInfo.isMobile())
+			return MSysConfig.getBooleanValue(MSysConfig.ZK_INFO_MOBILE_AUTO_HIDE_EMPTY_COLUMNS, true, Env.getAD_Client_ID(Env.getCtx()));
+		else
+			return MSysConfig.getBooleanValue(MSysConfig.ZK_INFO_AUTO_HIDE_EMPTY_COLUMNS, false, Env.getAD_Client_ID(Env.getCtx()));
 	}
 
 	/**
@@ -1154,15 +1231,15 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 
     	PreparedStatement m_pstmt = null;
 		ResultSet m_rs = null;
-		String dataSql = null;
+		SQLFragment dataSql = null;
 		
 		long startTime = System.currentTimeMillis();
 			//
 
-        dataSql = buildDataSQL(start, end);
+        dataSql = buildDataSQLFragment(start, end);
         isHasNextPage = false;
         if (log.isLoggable(Level.FINER))
-        	log.finer(dataSql);
+        	log.finer(dataSql.sqlClause());
         Trx trx = null;
 		try
 		{
@@ -1170,7 +1247,7 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 			String trxName = Trx.createTrxName("InfoPanelLoad:");
 			trx  = Trx.get(trxName, true);
 			trx.setDisplayName(getClass().getName()+"_readLine");
-			m_pstmt = DB.prepareStatement(dataSql, trxName);
+			m_pstmt = DB.prepareStatement(dataSql.sqlClause(), trxName);
 			if (queryTimeout > 0)
 				m_pstmt.setQueryTimeout(queryTimeout);
 			setParameters (m_pstmt, false);	//	no count
@@ -1216,12 +1293,12 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 			if (DB.getDatabase().isQueryTimeout(e))
 			{
 				if (log.isLoggable(Level.INFO))
-					log.log(Level.INFO, dataSql, e);
+					log.log(Level.INFO, dataSql.sqlClause(), e);
 				Dialog.error(p_WindowNo, INFO_QUERY_TIME_OUT_ERROR);
 			}
 			else
 			{
-				log.log(Level.SEVERE, dataSql, e);
+				log.log(Level.SEVERE, dataSql.sqlClause(), e);
 				Dialog.error(p_WindowNo, "DBExecuteError", e.getMessage());
 			}
 		}
@@ -1337,11 +1414,23 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
      * @param start
      * @param end
      * @return sql clause
+     * @deprecated use {@link #buildDataSQLFragment(int, int)} instead
      */
+    @Deprecated (since="13", forRemoval=true)
 	protected String buildDataSQL(int start, int end) {
+		return buildDataSQLFragment(start, end).toSQLWithParameters();
+	}
+	
+    /**
+     * build sql clause with paging
+     * @param start
+     * @param end
+     * @return sql clause
+     */
+	protected SQLFragment buildDataSQLFragment(int start, int end) {
 		String dataSql;
 		String dynWhere = getSQLWhere();   //  includes first AND
-        StringBuilder sql = new StringBuilder (m_sqlMain);
+        StringBuilder sql = new StringBuilder (m_sqlFragmentMain.sqlClause());
         if (dynWhere.length() > 0) {
 			if(sql.toString().trim().endsWith("WHERE")) {
 				dynWhere = dynWhere.replaceFirst("AND", " ");
@@ -1363,7 +1452,7 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
         {
         	dataSql = DB.getDatabase().addPagingSQL(dataSql, getCacheStart(), cacheEnd);
         }
-		return dataSql;
+		return new SQLFragment(dataSql, m_sqlFragmentMain.parameters());
 	}
 
 	/**
@@ -1420,7 +1509,9 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 		String colsql = !Util.isEmpty(displayColumn) ? displayColumn : p_layout[col].getColSQL().trim();
 		
 		colsql = getSelectForOrderBy(colsql);
-		if(!Util.isEmpty(displayColumn) && (DisplayType.isLookup(orderColumnInfo.getAD_Reference_ID()) || DisplayType.isChosenMultipleSelection(orderColumnInfo.getAD_Reference_ID()))) {
+		if (   !Util.isEmpty(displayColumn)
+			&& (   (DisplayType.isID(orderColumnInfo.getAD_Reference_ID()) && orderColumnInfo.getAD_Reference_ID() != DisplayType.ID)
+			    || DisplayType.isLookup(orderColumnInfo.getAD_Reference_ID()))) {
 			String from = getFromForOrderBy(orderColumnInfo, displayColumn);
 			String where = getWhereForOrderBy(orderColumnInfo);
 			
@@ -1585,8 +1676,7 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 		
 		long start = System.currentTimeMillis();
 		String dynWhere = getSQLWhere();   //  includes first AND
-		StringBuilder sql = new StringBuilder (m_sqlCount);
-
+		StringBuilder sql = new StringBuilder (m_sqlFragmentCount.sqlClause());
 		if (dynWhere.length() > 0) {
 			if(sql.toString().trim().endsWith("WHERE")) {
 				dynWhere = dynWhere.replaceFirst("AND", " ");
@@ -1738,6 +1828,7 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 	 *  @deprecated use getSaveKeys
 	 *  @return selected keys (Integers)
 	 */
+    @Deprecated (since="13", forRemoval=true)
 	public Collection<Object> getSelectedKeysCollection()
 	{
 		m_ok = true;
@@ -2603,27 +2694,21 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 	            form.setAttribute(Window.MODE_KEY, form.getWindowMode());
 	            form.setAttribute(Window.INSERT_POSITION_KEY, Window.INSERT_NEXT);
 
+	            form.addEventListener(DialogEvents.ON_WINDOW_CLOSE, new EventListener<Event>() {
+                    @Override
+                    public void onEvent(Event event) throws Exception {
+                        updateListSelected();
+                        recordSelectedData.clear();
+                        Clients.response(new AuEcho(InfoPanel.this, "onQueryCallback", null));
+                        onUserQuery();
+                    }
+                });
+
 	            if (mode == Mode.HIGHLIGHTED || mode == Mode.MODAL) {
-	                form.addEventListener(DialogEvents.ON_WINDOW_CLOSE, new EventListener<Event>() {
-	                    @Override
-	                    public void onEvent(Event event) throws Exception {
-	                        ;
-	                    }
-	                });
 	                form.doHighlighted();
 	                form.focus();
 	            }
 	            else {
-	                form.addEventListener(DialogEvents.ON_WINDOW_CLOSE, new EventListener<Event>() {
-	                    @Override
-	                    public void onEvent(Event event) throws Exception {
-	                        updateListSelected();
-	                        recordSelectedData.clear();
-	                        Clients.response(new AuEcho(InfoPanel.this, "onQueryCallback", null));
-	                        onUserQuery();
-	                    }
-	                });
-
 	                SessionManager.getAppDesktop().showWindow(form);
 	            }
 	            return;
@@ -2785,8 +2870,8 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 					else if (data instanceof UUIDColumn)
 					{
 						UUIDColumn id = (UUIDColumn) data;
-						parameters.add(null);
 						parameters.add(id.getRecord_UU());
+						parameters.add(null);
 						parameters.add(null);
 					}					
 					else if (data instanceof String)
@@ -3399,7 +3484,25 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 			for (MStatusLine wl : wls) {
 				String line = wl.parseLine(getWindowNo());
 				if (line != null) {
-					lines.append(line).append("<br>");
+					if (wl.getAD_Style_ID() > 0) {
+			    		MStyle style = MStyle.get(wl.getAD_Style_ID());
+						String css = style.buildStyle(Env.getContext(Env.getCtx(), Env.THEME), new DefaultEvaluatee(), false);				
+						if (!Util.isEmpty(css, true)) {
+							lines.append("<div>\n")
+								.append("<style>\n")
+								.append("@scope {\n")
+								.append(css)
+								.append("\n}\n")
+								.append("</style>\n")
+								.append(line)
+								.append("\n")
+								.append("</div>\n");
+						} else {
+							lines.append(line).append("<br>");
+						}
+		    		} else {
+		    			lines.append(line).append("<br>");
+		    		}
 				}
 			}
 			if (lines.length() > 0)

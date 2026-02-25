@@ -28,6 +28,7 @@ import java.util.Properties;
 import java.util.logging.Level;
 
 import org.adempiere.base.Core;
+import org.compiere.model.AttachmentData;
 import org.compiere.model.MAttachment;
 import org.compiere.model.MImage;
 import org.compiere.print.MPrintFormatItem;
@@ -42,7 +43,7 @@ import org.compiere.util.Env;
  * 	@version 	$Id: ImageElement.java,v 1.3 2006/07/30 00:53:02 jjanke Exp $
  */
 public class ImageElement extends PrintElement
-{
+{	
 	/**
 	 * generated serial id
 	 */
@@ -55,6 +56,8 @@ public class ImageElement extends PrintElement
 	 */
 	public static ImageElement get (String imageURLString)
 	{
+		if (imageURLString == null)
+			return null;
 		Object key = imageURLString;
 		ImageElement image = (ImageElement)s_cache.get(key);
 		if (image == null)
@@ -148,18 +151,27 @@ public class ImageElement extends PrintElement
 	 */
 	private ImageElement(String imageURLstring)
 	{
-		URL imageURL = getURL(imageURLstring);
-		if (imageURL != null)
+		if (MAttachment.isAttachmentURLPath(imageURLstring))
 		{
-			m_image = Toolkit.getDefaultToolkit().createImage(imageURL);
-			if (m_image != null) {
-				if (log.isLoggable(Level.FINE)) log.fine("URL=" + imageURL);
-			} else {
-				log.log(Level.WARNING, "Not loaded - URL=" + imageURL);
-			}
+			AttachmentData imageData = MAttachment.getDataFromAttachmentURLPath(imageURLstring);
+			if (imageData != null && imageData.data() != null)
+				m_image = Toolkit.getDefaultToolkit().createImage(imageData.data());
 		}
 		else
-			log.log(Level.WARNING, "Invalid URL=" + imageURLstring);
+		{
+			URL imageURL = getURL(imageURLstring);
+			if (imageURL != null)
+			{
+				m_image = Toolkit.getDefaultToolkit().createImage(imageURL);
+				if (m_image != null) {
+					if (log.isLoggable(Level.FINE)) log.fine("URL=" + imageURL);
+				} else {
+					log.log(Level.WARNING, "Not loaded - URL=" + imageURL);
+				}
+			}
+			else
+				log.log(Level.WARNING, "Invalid URL=" + imageURLstring);
+		}
 	}	//	ImageElement
 
 	/**
@@ -216,6 +228,8 @@ public class ImageElement extends PrintElement
 	private URL getURL (String urlString)
 	{
 		URL url = null;
+		if (urlString == null)
+			return null;
 		//	not a URL - may be a resource
 		if (urlString.indexOf("://") == -1)
 		{
@@ -273,7 +287,7 @@ public class ImageElement extends PrintElement
 	 */
 	private void loadAttachment(int AD_PrintFormatItem_ID)
 	{
-		MAttachment attachment = MAttachment.get(Env.getCtx(), MPrintFormatItem.Table_ID, AD_PrintFormatItem_ID, null, null);
+		try (MAttachment attachment = MAttachment.get(Env.getCtx(), MPrintFormatItem.Table_ID, AD_PrintFormatItem_ID, null, null);) {
 		if (attachment == null)
 		{
 			log.log(Level.WARNING, "No Attachment - AD_PrintFormatItem_ID=" + AD_PrintFormatItem_ID);
@@ -293,7 +307,7 @@ public class ImageElement extends PrintElement
 		} else {
 			log.log(Level.WARNING, attachment.getEntryName(0)
 					+ " - not loaded (must be gif or jpg) - AD_PrintFormatItem_ID=" + AD_PrintFormatItem_ID);
-		}
+		}}
 	}	//	loadAttachment
 
 	/**
@@ -358,7 +372,6 @@ public class ImageElement extends PrintElement
 	/**
 	 * Get image scale factor.
 	 * 
-	 * @author teo_sarca - [ 1673548 ] Image is not scaled in a report table cell
 	 * @return scale factor
 	 */
 	public double getScaleFactor() {

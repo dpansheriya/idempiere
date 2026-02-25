@@ -26,6 +26,7 @@ package org.compiere.model;
 
 import org.compiere.util.Ini;
 import org.compiere.util.SecureInterface;
+import org.compiere.util.Util;
 
 /**
  * Collection of System properties used in iDempiere
@@ -34,7 +35,7 @@ import org.compiere.util.SecureInterface;
  */
 public class SystemProperties {
 
-	private static final String ADEMPIERE_DB_SYSTEM_USER = "ADEMPIERE_DB_SYSTEM_USER";
+	public static final String ADEMPIERE_DB_SYSTEM_USER = "ADEMPIERE_DB_SYSTEM_USER";
 	private static final String ADEMPIERE_SECURE = SecureInterface.ADEMPIERE_SECURE;
 	private static final String Cache_ExpireMinute = "Cache.ExpireMinute";
 	private static final String Cache_MaxSize = "Cache.MaxSize";
@@ -48,9 +49,12 @@ public class SystemProperties {
 	private static final String org_idempiere_db_debug = "org.idempiere.db.debug";
 	private static final String org_idempiere_db_debug_convert = "org.idempiere.db.debug.convert";
 	private static final String org_idempiere_db_debug_filter = "org.idempiere.db.debug.filter";
+	private static final String org_idempiere_developermode = "org.idempiere.developermode";
 	private static final String org_idempiere_FileLogPrefix = "org.idempiere.FileLogPrefix";
+	private static final String org_idempiere_FullExceptionTraceInLog = "org.idempiere.FullExceptionTraceInLog";
 	private static final String org_idempiere_postgresql_URLParameters = "org.idempiere.postgresql.URLParameters";
 	private static final String org_idempiere_po_useOptimisticLocking = "org.idempiere.po.useOptimisticLocking";
+	private static final String org_idempiere_ui_zk_serverpush = "org.idempiere.ui.zk.serverpush";
 	private static final String PostgreSQLNative = "PostgreSQLNative";
 	private static final String PropertyFile = "PropertyFile";
 	private static final String PropertyHomeFile = "PropertyHomeFile";
@@ -61,10 +65,14 @@ public class SystemProperties {
 
 	/**
 	 * ADEMPIERE_DB_SYSTEM_USER allows to override the default name of the system user for the database
+	 * try first with a JVM variable, if not defined then try environment variable
 	 * @return
 	 */
 	public static String getAdempiereDBSystemUser() {
-		return System.getProperty(ADEMPIERE_DB_SYSTEM_USER);
+		String systemUser = System.getProperty(ADEMPIERE_DB_SYSTEM_USER);
+		if (Util.isEmpty(systemUser, true))
+			systemUser = System.getenv(ADEMPIERE_DB_SYSTEM_USER);
+		return systemUser;
 	}
 
 	/**
@@ -72,7 +80,10 @@ public class SystemProperties {
 	 * @return
 	 */
 	public static String getAdempiereSecure() {
-		return System.getProperty(ADEMPIERE_SECURE);
+		String secureClass = System.getProperty(ADEMPIERE_SECURE);
+		if (Util.isEmpty(secureClass, true))
+			secureClass = System.getenv(ADEMPIERE_SECURE);
+		return secureClass;
 	}
 
 	/**
@@ -187,6 +198,14 @@ public class SystemProperties {
 	}
 
 	/**
+	 * org_idempiere_developermode=Y to define that iDempiere is running in developer mode (usually in eclipse IDE) Y/N
+	 * @return
+	 */
+	public static boolean isDeveloperMode() {
+		return System.getProperty(org_idempiere_developermode, "N").equals("Y");
+	}
+
+	/**
 	 * org.idempiere.FileLogPrefix defines the template prefix to write logs
 	 * @return
 	 */
@@ -217,6 +236,14 @@ public class SystemProperties {
 	 */
 	public static boolean isOptimisticLocking() {
 		return "true".equalsIgnoreCase(System.getProperty(org_idempiere_po_useOptimisticLocking, "false"));
+	}
+
+	/**
+	 * org.idempiere.ui.zk.serverpush = atmosphere|websocket to define the server push implementation to use
+	 * @return
+	 */
+	public static String getZKServerPush() {
+		return System.getProperty(org_idempiere_ui_zk_serverpush);
 	}
 
 	/**
@@ -277,4 +304,11 @@ public class SystemProperties {
 		return "true".equals(System.getProperty(TRACE_NULL_TRX_CONNECTION));
 	}
 
+	/**
+	 * org_idempiere_FullExceptionTraceInLog=true to not cut trace log
+	 * @return
+	 */
+	public static boolean isFullExceptionTraceInLog() {
+		return "true".equals(System.getProperty(org_idempiere_FullExceptionTraceInLog));
+	}
 }

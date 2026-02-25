@@ -1,4 +1,4 @@
-// Generated from SimpleBoolean.g4 by ANTLR 4.9.2
+// Generated from SimpleBoolean.g4 by ANTLR 4.9.3
 
     package org.idempiere.expression.logic;
 
@@ -13,7 +13,7 @@ import java.util.ArrayList;
 
 @SuppressWarnings({"all", "warnings", "unchecked", "unused", "cast"})
 public class SimpleBooleanParser extends Parser {
-	static { RuntimeMetaData.checkVersion("4.9.2", RuntimeMetaData.VERSION); }
+	static { RuntimeMetaData.checkVersion("4.9.3", RuntimeMetaData.VERSION); }
 
 	protected static final DFA[] _decisionToDFA;
 	protected static final PredictionContextCache _sharedContextCache =
@@ -53,7 +53,7 @@ public class SimpleBooleanParser extends Parser {
 	/**
 	 * @deprecated Use {@link #VOCABULARY} instead.
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static final String[] tokenNames;
 	static {
 		tokenNames = new String[_SYMBOLIC_NAMES.length];
@@ -70,7 +70,7 @@ public class SimpleBooleanParser extends Parser {
 	}
 
 	@Override
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public String[] getTokenNames() {
 		return tokenNames;
 	}

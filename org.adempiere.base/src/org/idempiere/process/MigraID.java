@@ -28,7 +28,6 @@ package org.idempiere.process;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 import org.compiere.model.MProcessPara;
 import org.compiere.model.MSequence;
@@ -100,7 +99,7 @@ public class MigraID extends SvrProcess {
 		if (! Util.isEmpty(p_UUID_From)) {
 			String uuidCol = PO.getUUIDColumnName(l_tableName);
 			if (Util.isEmpty(p_UUID_To)) {
-				p_UUID_To = UUID.randomUUID().toString();
+				p_UUID_To = Util.generateUUIDv7().toString();
 			}
 			// convert UUID
 			StringBuilder updUUIDSB = new StringBuilder()
@@ -109,7 +108,7 @@ public class MigraID extends SvrProcess {
 					.append(" WHERE ").append(uuidCol).append("=?");
 			int cnt = DB.executeUpdateEx(updUUIDSB.toString(), new Object[] {p_UUID_To, p_UUID_From}, get_TrxName());
 			if (cnt <= 0) {
-				msg = "@Error@: UUID " + p_UUID_From + " not found on table " + l_tableName;
+				msg = "@Error@ UUID " + p_UUID_From + " not found on table " + l_tableName;
 			} else {
 				int id = -1;
 				msg = "UUID changed on table " + l_tableName + " from " + p_UUID_From + " to " + p_UUID_To;
@@ -144,7 +143,7 @@ public class MigraID extends SvrProcess {
 			// convert ID
 			int cnt = updID(l_tableName, idCol, true);
 			if (cnt <= 0) {
-				msg = "@Error@: ID " + p_ID_From + " not found on table " + l_tableName;
+				msg = "@Error@ ID " + p_ID_From + " not found on table " + l_tableName;
 			} else {
 				msg = "ID changed on table " + l_tableName + " from " + p_ID_From + " to " + p_ID_To;
 				addBufferLog(0, null, null, msg, p_AD_Table_ID, p_ID_To);

@@ -42,6 +42,7 @@ import org.adempiere.webui.event.DrillEvent.DrillData;
 import org.adempiere.webui.event.ValueChangeEvent;
 import org.adempiere.webui.grid.AbstractWQuickEntry;
 import org.adempiere.webui.theme.ThemeManager;
+import org.adempiere.webui.util.Icon;
 import org.adempiere.webui.util.ZKUpdateUtil;
 import org.adempiere.webui.window.WFieldRecordInfo;
 import org.adempiere.webui.window.WLocationDialog;
@@ -86,7 +87,6 @@ import org.zkoss.zul.Menuitem;
  * Implemented with {@link EditorCombobox} or {@link EditorAutoComplete} (AD_Field.IsAutoComplete=Y) component.
  * @author  <a href="mailto:agramdass@gmail.com">Ashley G Ramdass</a>
  * @date    Mar 12, 2007
- * @version $Revision: 0.10 $
  */
 public class WTableDirEditor extends WEditor implements ListDataListener, 
 ContextMenuListener, IZoomableEditor
@@ -334,7 +334,7 @@ ContextMenuListener, IZoomableEditor
         			searchMode.setAttribute(WEditorPopupMenu.EVENT_ATTRIBUTE, SHORT_LIST_EVENT);
         			searchMode.setLabel(Msg.getMsg(Env.getCtx(), "ShortListSwitchSearchMode"));
         			if(ThemeManager.isUseFontIconForImage())
-        				searchMode.setIconSclass("z-icon-Lock");
+        				searchMode.setIconSclass(Icon.getIconSclass(Icon.LOCK));
         			else
         				searchMode.setImage(ThemeManager.getThemeResource("images/Lock16.png"));
         			searchMode.addEventListener(Events.ON_CLICK, popupMenu);
@@ -467,10 +467,13 @@ ContextMenuListener, IZoomableEditor
             getComponent().setValue(null);
             getComponent().setSelectedItem(null);
             oldValue = value;
+            if (gridField!=null)
+        		gridField.setLockedRecord(false);
             
             if (getComponent() instanceof EditorAutoComplete && gridField!=null)	// IDEMPIERE-4442 Fix NPE, for Autocomplete in non Grid Usage.
             	updateStyle();
-        }                                
+        }       
+		popupMenu.showDrillAssistant(value != null);                         
     }
     
     @Override

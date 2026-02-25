@@ -32,10 +32,10 @@ import org.adempiere.base.annotation.Callout;
 import org.compiere.model.GridField;
 import org.compiere.model.GridTab;
 import org.compiere.model.GridTable;
+import org.compiere.model.ICostInfo;
 import org.compiere.model.I_M_InventoryLine;
 import org.compiere.model.MAcctSchema;
 import org.compiere.model.MClient;
-import org.compiere.model.MCost;
 import org.compiere.model.MCostElement;
 import org.compiere.model.MDocType;
 import org.compiere.model.MInventory;
@@ -64,7 +64,8 @@ public class CostAdjustmentLineProduct implements IColumnCallout {
 		if (mTab.getValue("M_Inventory_ID") == null)
 			return null;
 		MInventory inventory = new MInventory(ctx, (Integer) mTab.getValue("M_Inventory_ID"), trxName);
-		if (MDocType.DOCSUBTYPEINV_CostAdjustment.equals(inventory.getC_DocType().getDocSubTypeInv())) {
+		MDocType docType = MDocType.get(inventory.getC_DocType_ID());
+		if (MDocType.DOCSUBTYPEINV_CostAdjustment.equals(docType.getDocSubTypeInv())) {
 			String costingMethod = inventory.getCostingMethod();
 			if (value == null) {
 				mTab.setValue(I_M_InventoryLine.COLUMNNAME_CurrentCostPrice, BigDecimal.ZERO);
@@ -94,16 +95,18 @@ public class CostAdjustmentLineProduct implements IColumnCallout {
 								as = a ; 
 						}
 					}
-					MCost cost = product.getCostingRecord(as, AD_Org_ID, M_ASI_ID, costingMethod);					
+					ICostInfo cost = product.getCostInfo(as, AD_Org_ID, M_ASI_ID, costingMethod, inventory.getMovementDate());					
 					if (cost == null) {
 						if (!MCostElement.COSTINGMETHOD_StandardCosting.equals(costingMethod)) {
 							mTab.setValue(mField, null);
 							return Msg.getMsg(Env.getCtx(), "NoCostingRecord");
 						}
+						mTab.setValue(I_M_InventoryLine.COLUMNNAME_CurrentCostPrice, BigDecimal.ZERO);
+						mTab.setValue(I_M_InventoryLine.COLUMNNAME_NewCostPrice, BigDecimal.ZERO);
+					}else {
+						mTab.setValue(I_M_InventoryLine.COLUMNNAME_CurrentCostPrice, cost.getCurrentCostPrice());
+						mTab.setValue(I_M_InventoryLine.COLUMNNAME_NewCostPrice, cost.getCurrentCostPrice());	
 					}
-
-					mTab.setValue(I_M_InventoryLine.COLUMNNAME_CurrentCostPrice, cost.getCurrentCostPrice());
-					mTab.setValue(I_M_InventoryLine.COLUMNNAME_NewCostPrice, cost.getCurrentCostPrice());	
 				}
 			}
 		}

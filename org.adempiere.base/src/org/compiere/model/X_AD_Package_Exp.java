@@ -24,7 +24,7 @@ import org.compiere.util.KeyNamePair;
 
 /** Generated Model for AD_Package_Exp
  *  @author iDempiere (generated)
- *  @version Release 11 - $Id$ */
+ *  @version Release 13 - $Id$ */
 @org.adempiere.base.Model(table="AD_Package_Exp")
 public class X_AD_Package_Exp extends PO implements I_AD_Package_Exp, I_Persistent
 {
@@ -32,7 +32,7 @@ public class X_AD_Package_Exp extends PO implements I_AD_Package_Exp, I_Persiste
 	/**
 	 *
 	 */
-	private static final long serialVersionUID = 20231222L;
+	private static final long serialVersionUID = 20251027L;
 
     /** Standard Constructor */
     public X_AD_Package_Exp (Properties ctx, int AD_Package_Exp_ID, String trxName)
@@ -43,6 +43,8 @@ public class X_AD_Package_Exp extends PO implements I_AD_Package_Exp, I_Persiste
 			setAD_Package_Exp_ID (0);
 			setIsExportDictionaryEntity (false);
 // N
+			setIsIncludeOrganizationId (true);
+// Y
 			setName (null);
 			setPK_Version (null);
 			setProcessing (false);
@@ -58,6 +60,8 @@ public class X_AD_Package_Exp extends PO implements I_AD_Package_Exp, I_Persiste
 			setAD_Package_Exp_ID (0);
 			setIsExportDictionaryEntity (false);
 // N
+			setIsIncludeOrganizationId (true);
+// Y
 			setName (null);
 			setPK_Version (null);
 			setProcessing (false);
@@ -73,6 +77,8 @@ public class X_AD_Package_Exp extends PO implements I_AD_Package_Exp, I_Persiste
 			setAD_Package_Exp_ID (0);
 			setIsExportDictionaryEntity (false);
 // N
+			setIsIncludeOrganizationId (true);
+// Y
 			setName (null);
 			setPK_Version (null);
 			setProcessing (false);
@@ -88,6 +94,8 @@ public class X_AD_Package_Exp extends PO implements I_AD_Package_Exp, I_Persiste
 			setAD_Package_Exp_ID (0);
 			setIsExportDictionaryEntity (false);
 // N
+			setIsIncludeOrganizationId (true);
+// Y
 			setName (null);
 			setPK_Version (null);
 			setProcessing (false);
@@ -282,6 +290,29 @@ public class X_AD_Package_Exp extends PO implements I_AD_Package_Exp, I_Persiste
 		return false;
 	}
 
+	/** Set Include Organization Id.
+		@param IsIncludeOrganizationId Y/N field. When set to Y, include organization id reference in exported data.
+	*/
+	public void setIsIncludeOrganizationId (boolean IsIncludeOrganizationId)
+	{
+		set_Value (COLUMNNAME_IsIncludeOrganizationId, Boolean.valueOf(IsIncludeOrganizationId));
+	}
+
+	/** Get Include Organization Id.
+		@return Y/N field. When set to Y, include organization id reference in exported data.
+	  */
+	public boolean isIncludeOrganizationId()
+	{
+		Object oo = get_Value(COLUMNNAME_IsIncludeOrganizationId);
+		if (oo != null)
+		{
+			 if (oo instanceof Boolean)
+				 return ((Boolean)oo).booleanValue();
+			return "Y".equals(oo);
+		}
+		return false;
+	}
+
 	/** Set Name.
 		@param Name Alphanumeric identifier of the entity
 	*/
@@ -368,8 +399,6 @@ public class X_AD_Package_Exp extends PO implements I_AD_Package_Exp, I_Persiste
 
 	/** ReleaseNo AD_Reference_ID=50002 */
 	public static final int RELEASENO_AD_Reference_ID=50002;
-	/** No specific release = all */
-	public static final String RELEASENO_NoSpecificRelease = "all";
 	/** Release 2.5.2a = Release 2.5.2a */
 	public static final String RELEASENO_Release252a = "Release 2.5.2a";
 	/** Release 2.5.2b = Release 2.5.2b */
@@ -390,6 +419,8 @@ public class X_AD_Package_Exp extends PO implements I_AD_Package_Exp, I_Persiste
 	public static final String RELEASENO_Release320 = "Release 3.2.0";
 	/** Release 3.3.0 = Release 3.3.0 */
 	public static final String RELEASENO_Release330 = "Release 3.3.0";
+	/** No specific release = all */
+	public static final String RELEASENO_NoSpecificRelease = "all";
 	/** Set Release No.
 		@param ReleaseNo Internal Release Number
 	*/

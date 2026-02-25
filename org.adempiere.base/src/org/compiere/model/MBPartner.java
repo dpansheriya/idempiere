@@ -103,7 +103,7 @@ public class MBPartner extends X_C_BPartner implements ImmutablePOSupport
 	 */
 	public static MBPartner getBPartnerCashTrx (Properties ctx, int AD_Client_ID)
 	{
-		MBPartner retValue = (MBPartner) MClientInfo.get(ctx, AD_Client_ID).getC_BPartnerCashTrx();
+		MBPartner retValue = MBPartner.get(ctx, MClientInfo.get(ctx, AD_Client_ID).getC_BPartnerCashTrx_ID());
 		if (retValue == null)
 			s_log.log(Level.SEVERE, "Not found for AD_Client_ID=" + AD_Client_ID);
 	
@@ -629,20 +629,6 @@ public class MBPartner extends X_C_BPartner implements ImmutablePOSupport
 		super.setClientOrg(AD_Client_ID, AD_Org_ID);
 	}	//	setClientOrg
 
-	/** 
-	 * 	Get Linked Organization.
-	 * 	(is Button)
-	 * 	The Business Partner is another Organization 
-	 * 	for explicit Inter-Org transactions 
-	 * 	@return AD_Org_ID if BP
-	 *  @deprecated
-	 */
-	@Deprecated(forRemoval = true, since = "11")
-	public int getAD_OrgBP_ID_Int() 
-	{
-		return getAD_OrgBP_ID();
-	}	//	getAD_OrgBP_ID_Int
-
 	/**
 	 * 	Get Primary C_BPartner_Location_ID (First BillTo or First)
 	 *	@return C_BPartner_Location_ID
@@ -686,7 +672,7 @@ public class MBPartner extends X_C_BPartner implements ImmutablePOSupport
 	
 	/**
 	 * 	Get Primary AD_User_ID
-	 *	@return AD_User_ID or 0
+	 *	@return AD_User_ID or -1
 	 */
 	public int getPrimaryAD_User_ID()
 	{
@@ -697,7 +683,7 @@ public class MBPartner extends X_C_BPartner implements ImmutablePOSupport
 				setPrimaryAD_User_ID(users[0].getAD_User_ID());
 		}
 		if (m_primaryAD_User_ID == null)
-			return 0;
+			return -1;
 		return m_primaryAD_User_ID.intValue();
 	}	//	getPrimaryAD_User_ID
 
@@ -722,7 +708,15 @@ public class MBPartner extends X_C_BPartner implements ImmutablePOSupport
 	/**
 	 * 	Calculate Total Open Balance and SO_CreditUsed.
 	 */
-	public void setTotalOpenBalance ()
+	public void setTotalOpenBalance () {
+		setTotalOpenBalanceUsingCurrentDocument(Env.ZERO);
+	}
+
+	/**
+	 * 	Calculate Total Open Balance and SO_CreditUsed.
+	 * @param amtToSubtractInBaseCurrency : amount
+	 */
+	public void setTotalOpenBalanceUsingCurrentDocument (BigDecimal amtToSubtractInBaseCurrency)
 	{
 		log.info("");
 		BigDecimal SO_CreditUsed = null;
@@ -765,9 +759,9 @@ public class MBPartner extends X_C_BPartner implements ImmutablePOSupport
 		}
 		//
 		if (SO_CreditUsed != null)
-			super.setSO_CreditUsed (SO_CreditUsed);
+			super.setSO_CreditUsed (SO_CreditUsed.subtract(amtToSubtractInBaseCurrency));
 		if (TotalOpenBalance != null)
-			super.setTotalOpenBalance(TotalOpenBalance);
+			super.setTotalOpenBalance(TotalOpenBalance.subtract(amtToSubtractInBaseCurrency));
 		setSOCreditStatus();
 	}	//	setTotalOpenBalance
 
@@ -999,7 +993,7 @@ public class MBPartner extends X_C_BPartner implements ImmutablePOSupport
 			//	Create Accounting Record
 			StringBuilder msgacc = new StringBuilder("p.C_BP_Group_ID=")
 					.append(getC_BP_Group_ID() > MTable.MAX_OFFICIAL_ID && Env.isLogMigrationScript(get_TableName())
-							? "toRecordId('C_BP_Group',"+DB.TO_STRING(MBPGroup.get(getC_BP_Group_ID()).getC_BP_Group_UU())+")"
+							? PO.buildUUIDSubquery("C_BP_Group", MBPGroup.get(getC_BP_Group_ID()).getC_BP_Group_UU())
 							: getC_BP_Group_ID());
 			insert_Accounting("C_BP_Customer_Acct", "C_BP_Group_Acct", msgacc.toString());
 			insert_Accounting("C_BP_Vendor_Acct", "C_BP_Group_Acct",msgacc.toString());

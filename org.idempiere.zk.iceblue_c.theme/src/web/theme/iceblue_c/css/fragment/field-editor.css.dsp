@@ -174,8 +174,8 @@ span.grid-combobox-editor {
 	cursor: default;
 	border: none;
 }
-.image-fit-contain {
-	object-fit: contain;
+.image-fit {
+	object-fit: scale-down;
 }
 .z-cell.image-field-cell {
 	z-index: 1;
@@ -185,6 +185,14 @@ span.grid-combobox-editor {
 .html-field {
 	cursor: pointer;
 	overflow: auto;
+	border: 1px solid #ECECEC;
+	border-radius: 4px;
+}
+.html-field:hover {
+	border-color: #A8A8A8;
+}
+.html-field:focus {
+	border-color: #0093F9;
 }
 
 <%-- dashboard content editor --%>
@@ -198,7 +206,7 @@ span.grid-combobox-editor {
 	float: right;
 }
 .mandatory-decorator-text {
-	text-decoration: none; font-size: xx-small; vertical-align: top; color:red;
+	text-decoration: none; font-size: xx-small; vertical-align: top;
 }
 
 .idempiere-mandatory, .idempiere-mandatory input, .idempiere-mandatory a {
@@ -274,4 +282,11 @@ span.grid-combobox-editor {
 <%-- font icon for field button --%>
 .z-button [class^="z-icon-"], .z-button-os [class^="z-icon-"] {
 	color: #fff;
+}
+
+<%-- full size image hover --%>
+.fullsize-image {
+	padding: 5px;
+  	border: 1px solid #ccc;
+  	background: #e3f4f9;
 }

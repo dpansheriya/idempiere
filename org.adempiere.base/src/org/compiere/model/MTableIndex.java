@@ -104,7 +104,6 @@ public class MTableIndex extends X_AD_TableIndex {
 	public MTableIndex(Properties ctx, ResultSet rs, String trxName)
 	{
 		super(ctx, rs, trxName);
-		m_ddl = createDDL();
 	}
 	
 	/**
@@ -249,7 +248,7 @@ public class MTableIndex extends X_AD_TableIndex {
 	{
 		String sql = null;
 		if (isCreateConstraint())
-			sql = "ALTER TABLE " + getAD_Table().getTableName() + " DROP CONSTRAINT " + getName() + " CASCADE";
+			sql = "ALTER TABLE " + getTableName() + " DROP CONSTRAINT " + getName() + " CASCADE";
 		else
 			sql = "DROP INDEX " + getName();
 		return sql;

@@ -58,7 +58,7 @@ public class UUIDGenerator extends SvrProcess {
 	private boolean isClearUUID = false;
 
 	/**	Logger							*/
-	private static final CLogger log = CLogger.getCLogger(UUIDGenerator.class);
+	private static final CLogger s_log = CLogger.getCLogger(UUIDGenerator.class);
 
 	/**
 	 * @see org.compiere.process.SvrProcess#prepare()
@@ -196,7 +196,7 @@ public class UUIDGenerator extends SvrProcess {
 		}
 		if ((compositeKeys == null || compositeKeys.length == 0) && keyColumn == null) {
 			// TODO: Update using rowid for oracle or ctid for postgresql
-			log.warning("Cannot update orphan table " + table.getTableName() + " (not ID neither parents)");
+			s_log.warning("Cannot update orphan table " + table.getTableName() + " (not ID neither parents)");
 			return "";
 		}
 		if (compositeKeys == null) {
@@ -246,11 +246,11 @@ public class UUIDGenerator extends SvrProcess {
 					int recordId = rs.getInt(1);
 					// this line is to avoid users generating official UUIDs - comment it to do official migration script work
 					if (recordId > MTable.MAX_OFFICIAL_ID) {
-						UUID uuid = UUID.randomUUID();
+						UUID uuid = Util.generateUUIDv7();
 						no += DB.executeUpdateEx(updateSQL.toString(),new Object[]{uuid.toString(), recordId}, trx.getTrxName());
 					}
 				} else {
-					UUID uuid = UUID.randomUUID();
+					UUID uuid = Util.generateUUIDv7();
 					List<Object> params = new ArrayList<Object>();
 					params.add(uuid.toString());
 					for (String s : compositeKeys) {

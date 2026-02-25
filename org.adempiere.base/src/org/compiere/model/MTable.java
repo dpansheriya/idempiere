@@ -27,6 +27,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 
 import org.adempiere.base.IModelFactory;
@@ -202,6 +204,28 @@ public class MTable extends X_AD_Table implements ImmutablePOSupport
 		return MTable.get(ctx, AD_Table_ID).getTableName();
 	}	//	getTableName
 
+	/**
+	 * Get table accessible by current effective role (via window access).<br/>
+	 * @param withEmptyElement if true, first element of the return array is an empty element with (-1,"")
+	 * @param trxName optional transaction name
+	 * @return table records (AD_Table_ID, translated Name), order by translated name
+	 */
+	public static KeyNamePair[] getWithWindowAccessKeyNamePairs(boolean withEmptyElement, String trxName)
+	{
+		final MRole role = MRole.getDefault(); 
+		boolean trl = !Env.isBaseLanguage(Env.getCtx(), "AD_Table");
+		String lang = Env.getAD_Language(Env.getCtx());
+		String sql = "SELECT DISTINCT t.AD_Table_ID,"
+				+ (trl ? "trl.Name" : "t.Name")
+			+ " FROM AD_Table t INNER JOIN AD_Tab tab ON (tab.AD_Table_ID=t.AD_Table_ID)"
+			+ " INNER JOIN AD_Window_Access wa ON (tab.AD_Window_ID=wa.AD_Window_ID) "
+			+ (trl ? "LEFT JOIN AD_Table_Trl trl on (trl.AD_Table_ID=t.AD_Table_ID and trl.AD_Language=" + DB.TO_STRING(lang) + ")" : "") 
+			+ " WHERE "+role.getIncludedRolesWhereClause("wa.AD_Role_ID", null) 
+			+ " AND t.IsActive='Y' AND tab.IsActive='Y' "
+			+ "ORDER BY 2";
+		return DB.getKeyNamePairsEx(trxName, sql, withEmptyElement);			
+	}
+	
 	/**	Cache						*/
 	private static ImmutableIntPOCache<Integer,MTable> s_cache = new ImmutableIntPOCache<Integer,MTable>(Table_Name, Table_Name, 20, 0, false, 0);
 
@@ -328,8 +352,8 @@ public class MTable extends X_AD_Table implements ImmutablePOSupport
 		this(ctx, -1, trxName);
 		copyPO(copy);
 		this.m_columns = copy.m_columns != null ? Arrays.stream(copy.m_columns).map(e -> {return new MColumn(ctx, e, trxName);}).toArray(MColumn[]::new): null;
-		this.m_columnNameMap = copy.m_columnNameMap != null ? new HashMap<String, Integer>(copy.m_columnNameMap) : null;
-		this.m_columnIdMap = copy.m_columnIdMap != null ? new HashMap<Integer, Integer>(copy.m_columnIdMap) : null;
+		this.m_columnNameMap = copy.m_columnNameMap != null ? new ConcurrentHashMap<String, Integer>(copy.m_columnNameMap) : null;
+		this.m_columnIdMap = copy.m_columnIdMap != null ? new ConcurrentHashMap<Integer, Integer>(copy.m_columnIdMap) : null;
 		this.m_viewComponents = copy.m_viewComponents != null ? Arrays.stream(copy.m_viewComponents).map(e -> {return new MViewComponent(ctx, e, trxName);}).toArray(MViewComponent[]::new) : null;
 	}
 
@@ -338,9 +362,9 @@ public class MTable extends X_AD_Table implements ImmutablePOSupport
 	/** Key Columns					*/
 	private String[]	m_KeyColumns = null;
 	/** column name to column index map **/
-	private Map<String, Integer> m_columnNameMap;
+	private ConcurrentMap<String, Integer> m_columnNameMap;
 	/** ad_column_id to column index map **/
-	private Map<Integer, Integer> m_columnIdMap;
+	private ConcurrentMap<Integer, Integer> m_columnIdMap;
 	/** View Components		*/
 	private MViewComponent[]	m_viewComponents = null;
 
@@ -353,8 +377,8 @@ public class MTable extends X_AD_Table implements ImmutablePOSupport
 	{
 		if (m_columns != null && !requery)
 			return m_columns;
-		m_columnNameMap = new HashMap<String, Integer>();
-		m_columnIdMap = new HashMap<Integer, Integer>();
+		m_columnNameMap = new ConcurrentHashMap<String, Integer>();
+		m_columnIdMap = new ConcurrentHashMap<Integer, Integer>();
 		String sql = "SELECT * FROM AD_Column WHERE AD_Table_ID=? AND IsActive='Y' ORDER BY ColumnName";
 		ArrayList<MColumn> list = new ArrayList<MColumn>();
 		PreparedStatement pstmt = null;
@@ -623,6 +647,63 @@ public class MTable extends X_AD_Table implements ImmutablePOSupport
 		return po;
 	}	//	getPO
 
+	/**
+	 * 	Get PO Instance using uuid string contructor
+	 *	@param uuid record uuid. not null or empty string.
+	 *	@param trxName
+	 *	@return PO for uuid or null
+	 */
+	public PO getUUIDPOInstance (String uuid, String trxName)
+	{
+		String tableName = getTableName();
+		PO po = null;
+		IServiceReferenceHolder<IModelFactory> cache = s_modelFactoryCache.get(tableName);
+		if (cache != null)
+		{
+			IModelFactory service = cache.getService();
+			if (service != null && service.getClass(tableName) != null)
+			{
+				po = service.getPO(tableName, uuid, trxName);
+				if (po != null)
+				{
+					if (!UUID_NEW_RECORD.equals(uuid) && !uuid.equals(po.get_UUID()))
+						po = null;
+					return po;
+				}
+			}
+			s_modelFactoryCache.remove(tableName);
+		}
+		
+		List<IServiceReferenceHolder<IModelFactory>> factoryList = Service.locator().list(IModelFactory.class).getServiceReferences();
+		if (factoryList != null)
+		{
+			for(IServiceReferenceHolder<IModelFactory> factory : factoryList)
+			{
+				IModelFactory service = factory.getService();
+				if (service != null && service.getClass(tableName) != null)
+				{
+					po = service.getPO(tableName, uuid, trxName);
+					if (po != null)
+					{
+						if (!UUID_NEW_RECORD.equals(uuid) && !uuid.equals(po.get_UUID()))
+							po = null;
+						s_modelFactoryCache.put(tableName, factory);
+						break;
+					}
+				}
+			}
+		}
+
+		if (po == null && s_modelFactoryCache.get(tableName) == null)
+		{
+			po = new GenericPO(tableName, getCtx(), uuid, trxName);
+			if (!UUID_NEW_RECORD.equals(uuid) && !uuid.equals(po.get_UUID()))
+				po = null;
+		}
+
+		return po;
+	}
+	
 	private static final ThreadLocal<Map<Integer, String[]>> partialPOResultSetColumns = new ThreadLocal<>();
 	
 	/**
@@ -651,6 +732,8 @@ public class MTable extends X_AD_Table implements ImmutablePOSupport
 			partialPOResultSetColumns.set(map);
 			PO po = getPO(rs, trxName);
 			po.makeImmutable();
+			po.set_Partial(true);
+			po.set_ColumnLoaded(selectColumns);
 			return po;
 		} finally {
 			partialPOResultSetColumns.remove();
@@ -714,10 +797,25 @@ public class MTable extends X_AD_Table implements ImmutablePOSupport
 	 */
 	public PO getPOByUU (String uuID, String trxName)
 	{
-		PO po = getPO(0, trxName);
-		po.loadByUU(uuID, trxName);
-
-		return po;
+		if (isUUIDKeyTable())
+			return getUUIDPOInstance(uuID, trxName);
+		
+		// create new record
+		if (PO.UUID_NEW_RECORD.equals(uuID))
+		{
+			PO po = getUUIDPOInstance(uuID, trxName);
+			// try id contructor if uuid constructor not found
+			if (po == null)
+				po = getPO(0, trxName);
+			return po;
+		}
+		
+		// not uuid key table and not create new record, fall backs to load by where clause
+		StringBuilder whereClause = new StringBuilder()
+			.append(PO.getUUIDColumnName(getTableName()))
+			.append("=")
+			.append(DB.TO_STRING(uuID));
+		return getPO(whereClause.toString(), trxName);
 	} // getPOByUU
 
 	/**
@@ -930,7 +1028,6 @@ public class MTable extends X_AD_Table implements ImmutablePOSupport
 				tablename.equals("AD_Role") ||
 				tablename.equals("AD_AllRoles_V") ||
 				tablename.equals("AD_System") ||
-				tablename.equals("AD_User") ||
 				tablename.equals("AD_AllUsers_V") ||
 				tablename.equals("C_DocType") ||
 				tablename.equals("GL_Category") ||

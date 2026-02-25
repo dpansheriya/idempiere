@@ -348,7 +348,7 @@ public class MOrderLine extends X_C_OrderLine
 		int ii = Core.getTaxLookup().get(getCtx(), getM_Product_ID(), getC_Charge_ID(), getDateOrdered(), getDateOrdered(),
 			getAD_Org_ID(), getM_Warehouse_ID(),
 			getC_BPartner_Location_ID(),		//	should be bill to
-			getC_BPartner_Location_ID(), m_IsSOTrx, getParent().getDeliveryViaRule(), get_TrxName());
+			getC_BPartner_Location_ID(), getParent().getDropShip_Location_ID(), m_IsSOTrx, getParent().getDeliveryViaRule(), get_TrxName());
 		if (ii == 0)
 		{
 			log.log(Level.SEVERE, "No Tax found");
@@ -802,9 +802,11 @@ public class MOrderLine extends X_C_OrderLine
 			setHeaderInfo(getParent());
 		
 		//	Validate change of warehouse, product or ASI
-		if (!newRecord 
-			&& (is_ValueChanged("M_Product_ID") || is_ValueChanged("M_Warehouse_ID") || 
-			(!getParent().isProcessed() && is_ValueChanged(COLUMNNAME_M_AttributeSetInstance_ID)))) 
+		if (   !newRecord
+			&& (   is_ValueChanged("M_Product_ID")
+				|| is_ValueChanged("M_Warehouse_ID")
+				|| (   !getParent().isProcessed()
+					&& getM_AttributeSetInstance_ID() != get_ValueOldAsInt(COLUMNNAME_M_AttributeSetInstance_ID))))
 		{
 			if (!canChangeWarehouse())
 				return false;
@@ -827,7 +829,8 @@ public class MOrderLine extends X_C_OrderLine
 				getProductPricing(m_M_PriceList_ID);
 			// IDEMPIERE-1574 Sales Order Line lets Price under the Price Limit when updating
 			// Enforce PriceLimit
-			boolean enforce = m_IsSOTrx && getParent().getM_PriceList().isEnforcePriceLimit();
+			MPriceList priceList = MPriceList.get(getCtx(), getParent().getM_PriceList_ID(), get_TrxName());
+			boolean enforce = m_IsSOTrx && priceList.isEnforcePriceLimit();
 			if (enforce && MRole.getDefault().isOverwritePriceLimit())
 				enforce = false;
 			if (enforce && getPriceLimit() != Env.ZERO
@@ -878,7 +881,8 @@ public class MOrderLine extends X_C_OrderLine
 		/* Carlos Ruiz - globalqss
 		 * IDEMPIERE-178 Orders and Invoices must disallow amount lines without product/charge
 		 */
-		if (getParent().getC_DocTypeTarget().isChargeOrProductMandatory()) {
+		MDocType dt = MDocType.get(getParent().getC_DocTypeTarget_ID());
+		if (dt.isChargeOrProductMandatory()) {
 			if (getC_Charge_ID() == 0 && getM_Product_ID() == 0 && (getPriceEntered().signum() != 0 || getQtyEntered().signum() != 0)) {
 				log.saveError("FillMandatory", Msg.translate(getCtx(), "ChargeOrProductMandatory"));
 				return false;

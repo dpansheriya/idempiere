@@ -128,8 +128,8 @@ public class PackIn {
 		File in = new File(fileName);
 		if (!in.exists()) {
 			String msg = "File does not exist: " + fileName;
-			if (log.isLoggable(Level.INFO)) log.info("importXML:" + msg);
-			return msg;
+			if (log.isLoggable(Level.SEVERE)) log.info("importXML:" + msg);
+			throw new AdempiereException(msg);
 		}
 		try (FileInputStream input = new FileInputStream(in)) {
 			return importXML(input, ctx, trxName);
@@ -242,26 +242,24 @@ public class PackIn {
 		Enumeration<?> e = zf.entries();
 		ArrayList<File> files = new ArrayList<File>();
 		File[] retValue = null;
-		try{
+		try (zf) {
 			while (e.hasMoreElements()) {
 				ZipEntry ze = (ZipEntry) e.nextElement();
 				File file = new File(m_packageDirectory, ze.getName());
 				if (!file.toPath().normalize().startsWith(m_packageDirectory)) {
 					throw new AdempiereException("Bad zip entry: " + ze.getName());
 				}
+				try (
 				FileOutputStream fout = new FileOutputStream(file);
 				InputStream in = zf.getInputStream(ze);
+				) {
 				for (int c = in.read(); c != -1; c = in.read()) {
 					fout.write(c);
-				}
-				in.close();
-				fout.close();
+				}}
 				files.add(file);
 			}
-			retValue = new File[files.size()];
+			retValue = new File[files.size()];	
 			files.toArray(retValue);
-		} finally {
-			zf.close();
 		}
 		return retValue;
 	}

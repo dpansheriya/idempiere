@@ -28,6 +28,7 @@ import java.util.logging.Level;
 import org.compiere.util.CCache;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
+import org.compiere.util.DefaultEvaluatee;
 import org.compiere.util.Env;
 import org.compiere.util.Evaluatee;
 import org.compiere.util.Util;
@@ -172,7 +173,7 @@ public class GridTabVO implements Evaluatee, Serializable
 				vo.WhereClause = "";
 			//jz col=null not good for Derby
 			if (vo.WhereClause.indexOf("=null")>0)				
-				vo.WhereClause = vo.WhereClause.replaceAll("=null", " IS NULL ");
+				vo.WhereClause = vo.WhereClause.replace("=null", " IS NULL ");
 			// Where Clauses should be surrounded by parenthesis - teo_sarca, BF [ 1982327 ] 
 			if (vo.WhereClause.trim().length() > 0) {
 				vo.WhereClause = "("+vo.WhereClause+")";
@@ -346,6 +347,8 @@ public class GridTabVO implements Evaluatee, Serializable
 	public static void updateContext(GridTabVO vo) {
 		Env.setContext(vo.ctx, vo.WindowNo, vo.TabNo, GridTab.CTX_AD_Tab_ID, String.valueOf(vo.AD_Tab_ID));
 		Env.setContext(vo.ctx, vo.WindowNo, vo.TabNo, GridTab.CTX_AD_Tab_UU, vo.AD_Tab_UU);
+		Env.setContext(vo.ctx, vo.WindowNo, vo.TabNo, GridTab.CTX_AD_Table_ID, vo.AD_Table_ID);
+		Env.setContext(vo.ctx, vo.WindowNo, vo.TabNo, GridTab.CTX_AD_Table_UU, vo.AD_Table_UU);
 		Env.setContext(vo.ctx, vo.WindowNo, vo.TabNo, GridTab.CTX_Name, vo.Name);
 		Env.setContext(vo.ctx, vo.WindowNo, vo.TabNo, GridTab.CTX_AccessLevel, vo.AccessLevel);
 		Env.setContext(vo.ctx, vo.WindowNo, vo.TabNo, GridTab.CTX_IsLookupOnlySelection, vo.IsLookupOnlySelection);
@@ -685,9 +688,11 @@ public class GridTabVO implements Evaluatee, Serializable
 	 *	@param variableName name
 	 *	@return value as string
 	 */
+	@Override
 	public String get_ValueAsString (String variableName)
 	{
-		return Env.getContext (ctx, WindowNo, variableName, false);	// not just window
+		DefaultEvaluatee evaluatee = new DefaultEvaluatee(null, WindowNo, -1, false, false);
+		return evaluatee.get_ValueAsString(ctx, variableName);
 	}	//	get_ValueAsString
 
 	/**
@@ -714,6 +719,7 @@ public class GridTabVO implements Evaluatee, Serializable
 		clone.TreeDisplayedOn = TreeDisplayedOn;
 		clone.MaxQueryRecords = MaxQueryRecords;
 		clone.AD_Table_ID = AD_Table_ID;
+        clone.AD_Table_UU = AD_Table_UU;
 		clone.AD_Column_ID = AD_Column_ID;
 		clone.Parent_Column_ID = Parent_Column_ID;
 		clone.TableName = TableName;

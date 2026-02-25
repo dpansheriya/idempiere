@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 
+import org.compiere.model.MSysConfig;
 import org.compiere.print.MPrintFormat;
 import org.compiere.print.MPrintFormatItem;
 import org.compiere.print.PrintData;
@@ -41,6 +42,7 @@ import org.compiere.util.CLogger;
 import org.compiere.util.Env;
 import org.compiere.util.Ini;
 import org.compiere.util.Language;
+import org.compiere.util.Util;
 
 /**
  * Abstract base class for renderer that output delimited text content.
@@ -213,13 +215,23 @@ public abstract class DelimitedReportRenderer<C extends DelimitedReportRendererC
 				writer.write(Env.NL);
 			}	//	for all rows
 			//
-			writer.flush();
-			writer.close();
+			writer.flush();			
 		}
 		catch (Exception e)
 		{
 			log.log(Level.SEVERE, "(w)", e);
 			return false;
+		}
+		finally
+		{
+			try
+			{
+				writer.close();
+			}
+			catch (Exception e)
+			{
+				log.log(Level.SEVERE, "(w) - close", e);
+			}
 		}
 		return true;
 	}	//	createCSV
@@ -237,6 +249,8 @@ public abstract class DelimitedReportRenderer<C extends DelimitedReportRendererC
 		if (content == null || content.length() == 0)
 			return;
 		//
+		if (MSysConfig.getBooleanValue(MSysConfig.CSV_EXPORT_SANITIZATION, true, Env.getAD_Client_ID(Env.getCtx())))
+			content = Util.sanitizeCsvValue(content);
 		boolean needMask = false;
 		StringBuilder buff = new StringBuilder();
 		char chars[] = content.toCharArray();

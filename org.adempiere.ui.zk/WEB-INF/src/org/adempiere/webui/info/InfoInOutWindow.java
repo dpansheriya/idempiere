@@ -25,7 +25,7 @@
 package org.adempiere.webui.info;
 
 import org.compiere.model.GridField;
-import org.compiere.model.Lookup;
+import org.idempiere.db.util.SQLFragment;
 
 /**
  * Info window for M_InOut
@@ -47,11 +47,28 @@ public class InfoInOutWindow extends InfoWindow {
 	 * @param whereClause
 	 * @param AD_InfoWindow_ID
 	 */
+	@SuppressWarnings("removal")
+	@Deprecated (since="13", forRemoval=true)
 	public InfoInOutWindow(int WindowNo, String tableName, String keyColumn,
 			String queryValue, boolean multipleSelection, String whereClause,
 			int AD_InfoWindow_ID) {
 		super(WindowNo, tableName, keyColumn, queryValue, multipleSelection,
 				whereClause, AD_InfoWindow_ID);
+	}
+	
+	/**
+	 * @param WindowNo
+	 * @param tableName
+	 * @param keyColumn
+	 * @param queryValue
+	 * @param multipleSelection
+	 * @param AD_InfoWindow_ID
+	 * @param sqlFilter
+	 */
+	public InfoInOutWindow(int WindowNo, String tableName, String keyColumn,
+			String queryValue, boolean multipleSelection, int AD_InfoWindow_ID, SQLFragment sqlFilter) {
+		super(WindowNo, tableName, keyColumn, queryValue, multipleSelection,
+				AD_InfoWindow_ID, sqlFilter);
 	}
 
 	/**
@@ -64,6 +81,8 @@ public class InfoInOutWindow extends InfoWindow {
 	 * @param AD_InfoWindow_ID
 	 * @param lookup
 	 */
+	@SuppressWarnings("removal")
+	@Deprecated (since="13", forRemoval=true)
 	public InfoInOutWindow(int WindowNo, String tableName, String keyColumn,
 			String queryValue, boolean multipleSelection, String whereClause,
 			int AD_InfoWindow_ID, boolean lookup) {
@@ -77,19 +96,17 @@ public class InfoInOutWindow extends InfoWindow {
 	 * @param keyColumn
 	 * @param queryValue
 	 * @param multipleSelection
-	 * @param whereClause
 	 * @param AD_InfoWindow_ID
 	 * @param lookup
-	 * @param field
-	 * @param predefinedContextVariables
+	 * @param sqlFilter
 	 */
 	public InfoInOutWindow(int WindowNo, String tableName, String keyColumn,
-			String queryValue, boolean multipleSelection, String whereClause,
-			int AD_InfoWindow_ID, boolean lookup, GridField field, String predefinedContextVariables) {
+			String queryValue, boolean multipleSelection, int AD_InfoWindow_ID, 
+			boolean lookup, SQLFragment sqlFilter) {
 		super(WindowNo, tableName, keyColumn, queryValue, multipleSelection,
-				whereClause, AD_InfoWindow_ID, lookup, field, predefinedContextVariables);
+				AD_InfoWindow_ID, lookup, sqlFilter);
 	}
-
+	
 	/**
 	 * @param WindowNo
 	 * @param tableName
@@ -101,13 +118,32 @@ public class InfoInOutWindow extends InfoWindow {
 	 * @param lookup
 	 * @param field
 	 * @param predefinedContextVariables
-	 * @param lookupModel
 	 */
-	public InfoInOutWindow(int WindowNo, String tableName, String keyColumn, String queryValue,
-			boolean multipleSelection, String whereClause, int AD_InfoWindow_ID, boolean lookup, GridField field,
-			String predefinedContextVariables, Lookup lookupModel) {
-		super(WindowNo, tableName, keyColumn, queryValue, multipleSelection, whereClause, AD_InfoWindow_ID, lookup, field,
-				predefinedContextVariables, lookupModel);
-	}	
+	@SuppressWarnings("removal")
+	@Deprecated (since="13", forRemoval=true)
+	public InfoInOutWindow(int WindowNo, String tableName, String keyColumn,
+			String queryValue, boolean multipleSelection, String whereClause,
+			int AD_InfoWindow_ID, boolean lookup, GridField field, String predefinedContextVariables) {
+		super(WindowNo, tableName, keyColumn, queryValue, multipleSelection,
+				whereClause, AD_InfoWindow_ID, lookup, field, predefinedContextVariables);
+	}
 	
+	/**
+	 * @param WindowNo
+	 * @param tableName
+	 * @param keyColumn
+	 * @param queryValue
+	 * @param multipleSelection
+	 * @param AD_InfoWindow_ID
+	 * @param lookup
+	 * @param field
+	 * @param predefinedContextVariables
+	 * @param sqlFilter
+	 */
+	public InfoInOutWindow(int WindowNo, String tableName, String keyColumn,
+			String queryValue, boolean multipleSelection, 
+			int AD_InfoWindow_ID, boolean lookup, GridField field, String predefinedContextVariables, SQLFragment sqlFilter) {
+		super(WindowNo, tableName, keyColumn, queryValue, multipleSelection,
+				AD_InfoWindow_ID, lookup, field, predefinedContextVariables, sqlFilter);
+	}
 }

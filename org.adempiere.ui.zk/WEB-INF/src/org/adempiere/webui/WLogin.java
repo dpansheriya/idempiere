@@ -22,6 +22,7 @@ import javax.servlet.ServletRequest;
 import org.adempiere.webui.part.AbstractUIPart;
 import org.adempiere.webui.theme.ThemeManager;
 import org.adempiere.webui.window.LoginWindow;
+import org.compiere.model.MSysConfig;
 import org.zkoss.web.servlet.Servlets;
 import org.zkoss.zk.ui.Component;
 import org.zkoss.zk.ui.Executions;
@@ -31,14 +32,12 @@ import org.zkoss.zul.East;
 import org.zkoss.zul.North;
 import org.zkoss.zul.South;
 import org.zkoss.zul.West;
-import org.zkoss.zul.Window;
 
 /**
  * Manage login window for login and role selection
  * @author  <a href="mailto:agramdass@gmail.com">Ashley G Ramdass</a>
  * @author  Low Heng Sin
  * @date    Mar 3, 2007
- * @version $Revision: 0.10 $
  */
 public class WLogin extends AbstractUIPart
 {
@@ -46,13 +45,10 @@ public class WLogin extends AbstractUIPart
 	private IWebClient app;
 	/** Main layout */
 	private Borderlayout layout;
-	@Deprecated(forRemoval = true, since = "11")
-	private Window browserWarningWindow;
 	/** embedded window for login and role selection */
 	private LoginWindow loginWindow;
 
 	/**
-	 * 
 	 * @param app
 	 */
     public WLogin(IWebClient app)
@@ -85,12 +81,16 @@ public class WLogin extends AbstractUIPart
 			if (ua.contains("ipad") || ua.contains("iphone") || ua.contains("android"))
 				mobile = true;
 		}
+
+		var leftPanelConfig =  MSysConfig.getValue(MSysConfig.APPLICATION_LOGIN_LEFT_PANEL_SHOWN, "Y");
     	
         West west = layout.getWest();
         if (west.getFirstChild() != null && west.getFirstChild().getFirstChild() != null) {
     		west.setCollapsible(true);
     		west.setSplittable(true);
-        	if (mobile) {    		
+    		if(leftPanelConfig.equals("I")) {
+    			west.setVisible(false);
+    		}else if (mobile || leftPanelConfig.equals("H")) {    		
         		west.setOpen(false);
         	}
         } else {
@@ -126,8 +126,6 @@ public class WLogin extends AbstractUIPart
 	public void detach() {
 		layout.detach();
 		layout = null;
-		if (browserWarningWindow != null)
-			browserWarningWindow.detach();
 	}
 
 	/**

@@ -139,8 +139,8 @@ public class QuickGridView extends Vbox
 	private int pageSize = DEFAULT_PAGE_SIZE;
 
 	/**
-	 * list field display in grid mode, in case user customize grid
-	 * this list container only display list.
+	 * List field display in grid mode. If there are user customize grid record,
+	 * this list contain only the customized display list.
 	 */
 	private GridField[] gridFields;
 	
@@ -201,8 +201,8 @@ public class QuickGridView extends Vbox
 	public IQuickForm quickForm;
 
 	/**
-	 * list field display in grid mode, in case user customize grid
-	 * this list container only customize list.
+	 * List field display in grid mode. If there are user customize grid record,
+	 * this list contain only the customized display list.
 	 * @return GridField[]
 	 */
 	public GridField[] getGridField() {
@@ -1618,7 +1618,7 @@ public class QuickGridView extends Vbox
 	public void onPageDetached(Page page)
 	{
 		super.onPageDetached(page);
-		keyListener.setCtrlKeys(keyListener.getCtrlKeys().replaceAll(CNTRL_KEYS, ""));
+		keyListener.setCtrlKeys(keyListener.getCtrlKeys().replace(CNTRL_KEYS, ""));
 		keyListener.removeEventListener(Events.ON_CTRL_KEY, this);
 	}
 

@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 
+import org.adempiere.exceptions.BackDateTrxNotAllowedException;
 import org.adempiere.exceptions.NegativeInventoryDisallowedException;
 import org.adempiere.exceptions.PeriodClosedException;
 import org.compiere.process.DocAction;
@@ -55,7 +56,7 @@ public class MMovement extends X_M_Movement implements DocAction
 	/**
 	 * generated serial id
 	 */
-	private static final long serialVersionUID = 5415969431202357692L;
+	private static final long serialVersionUID = 7719628612559214932L;
 
     /**
      * UUID based Constructor
@@ -300,6 +301,13 @@ public class MMovement extends X_M_Movement implements DocAction
 			m_processMsg = "@PeriodClosed@";
 			return DocAction.STATUS_Invalid;
 		}
+		
+		if (!MAcctSchema.isBackDateTrxAllowed(getCtx(), getMovementDate(), get_TrxName()))
+		{
+			m_processMsg = "@BackDateTrxNotAllowed@";
+			return DocAction.STATUS_Invalid;
+		}
+		
 		MMovementLine[] lines = getLines(false);
 		if (lines.length == 0)
 		{
@@ -426,6 +434,16 @@ public class MMovement extends X_M_Movement implements DocAction
 			approveIt();
 		if (log.isLoggable(Level.INFO)) log.info(toString());
 		
+		if (!isReversal())
+		{
+			try {
+				periodClosedCheckForBackDateTrx(null);
+			} catch (PeriodClosedException e) {
+				m_processMsg = e.getLocalizedMessage();
+				return DocAction.STATUS_Invalid;
+			}
+		}
+		
 		StringBuilder errors = new StringBuilder();
 		//
 		MMovementLine[] lines = getLines(false);
@@ -549,7 +567,17 @@ public class MMovement extends X_M_Movement implements DocAction
 						
 						//Update Storage 
 						Timestamp effDateMPolicy = dateMPolicy;
-						if (dateMPolicy == null && line.getMovementQty().negate().signum() > 0)
+						if (effDateMPolicy == null && line.getMovementQty().negate().signum() > 0 
+								&& product.getM_AttributeSet_ID() > 0 && line.getM_AttributeSetInstance_ID() > 0) {
+							MAttributeSet as = MAttributeSet.get(getCtx(), product.getM_AttributeSet_ID());
+							if (as.isUseGuaranteeDateForMPolicy()) {
+								MAttributeSetInstance asi = new MAttributeSetInstance(getCtx(), line.getM_AttributeSetInstance_ID(), get_TrxName());
+								if (asi != null && asi.getGuaranteeDate() != null) {
+									effDateMPolicy = asi.getGuaranteeDate();
+								}
+							}
+						}
+						if (effDateMPolicy == null && line.getMovementQty().negate().signum() > 0)
 							effDateMPolicy = getMovementDate();
 						if (!MStorageOnHand.add(getCtx(),
 								line.getM_Locator_ID(),
@@ -561,10 +589,49 @@ public class MMovement extends X_M_Movement implements DocAction
 							m_processMsg = "Cannot correct Inventory OnHand (MA) [" + product.getValue() + "] - " + lastError;
 							return DocAction.STATUS_Invalid;
 						}
+						
+						// when the source and destination ASIs are different, re-lookup the storage record
+						if (line.getM_AttributeSetInstance_ID() > 0 && line.getM_AttributeSetInstanceTo_ID() > 0
+								&& line.getM_AttributeSetInstance_ID() != line.getM_AttributeSetInstanceTo_ID()) {
+							dateMPolicy= null;
+							storages = null;
+							if (line.getMovementQty().compareTo(Env.ZERO) > 0) {
+								// Find Date Material Policy bases on ASI To
+								storages = MStorageOnHand.getWarehouse(getCtx(), 0,
+										line.getM_Product_ID(), line.getM_AttributeSetInstanceTo_ID(), null,
+										MClient.MMPOLICY_FiFo.equals(product.getMMPolicy()), false,
+										line.getM_LocatorTo_ID(), get_TrxName());
+							} else {
+								// Case of reversal
+								storages = MStorageOnHand.getWarehouse(getCtx(), 0,
+										line.getM_Product_ID(), line.getM_AttributeSetInstance_ID(), null,
+										MClient.MMPOLICY_FiFo.equals(product.getMMPolicy()), false,
+										line.getM_Locator_ID(), get_TrxName());
+							}
+							for (MStorageOnHand storage : storages) {
+								if (storage.getQtyOnHand().add(line.getMovementQty()).compareTo(Env.ZERO) >= 0) {
+									dateMPolicy = storage.getDateMaterialPolicy();
+									break;
+								}
+							}
+							
+							if (dateMPolicy == null && storages.length > 0)
+								dateMPolicy = storages[0].getDateMaterialPolicy();
+						}
 	
 						//Update Storage
 						effDateMPolicy = dateMPolicy;
-						if (dateMPolicy == null && line.getMovementQty().signum() > 0)
+						if (effDateMPolicy == null && line.getMovementQty().signum() > 0 
+								&& product.getM_AttributeSet_ID() > 0 && line.getM_AttributeSetInstanceTo_ID() > 0) {
+							MAttributeSet as = MAttributeSet.get(getCtx(), product.getM_AttributeSet_ID());
+							if (as.isUseGuaranteeDateForMPolicy()) {
+								MAttributeSetInstance asi = new MAttributeSetInstance(getCtx(), line.getM_AttributeSetInstanceTo_ID(), get_TrxName());
+								if (asi != null && asi.getGuaranteeDate() != null) {
+									effDateMPolicy = asi.getGuaranteeDate();
+								}
+							}
+						}
+						if (effDateMPolicy == null && line.getMovementQty().signum() > 0)
 							effDateMPolicy = getMovementDate();
 						if (!MStorageOnHand.add(getCtx(),
 								line.getM_LocatorTo_ID(),
@@ -652,6 +719,7 @@ public class MMovement extends X_M_Movement implements DocAction
 		if (dt.isOverwriteDateOnComplete()) {
 			setMovementDate(TimeUtil.getDay(0));
 			MPeriod.testPeriodOpen(getCtx(), getMovementDate(), getC_DocType_ID(), getAD_Org_ID());
+			MAcctSchema.testBackDateTrxAllowed(getCtx(), getMovementDate(), get_TrxName());
 		}
 		if (dt.isOverwriteSeqOnComplete()) {
 			String value = DB.getDocumentNo(getC_DocType_ID(), get_TrxName(), true, this);
@@ -782,6 +850,15 @@ public class MMovement extends X_M_Movement implements DocAction
 				accrual = true;
 			}
 			
+			try
+			{
+				MAcctSchema.testBackDateTrxAllowed(getCtx(), getMovementDate(), get_TrxName());
+			}
+			catch (BackDateTrxNotAllowedException e)
+			{
+				accrual = true;
+			}
+			
 			if (accrual)
 				return reverseAccrualIt();
 			else
@@ -865,6 +942,18 @@ public class MMovement extends X_M_Movement implements DocAction
 			m_processMsg = "@PeriodClosed@";
 			return null;
 		}
+		if (!MAcctSchema.isBackDateTrxAllowed(getCtx(), reversalDate, get_TrxName()))
+		{
+			m_processMsg = "@BackDateTrxNotAllowed@";
+			return null;
+		}
+		
+		try {
+			periodClosedCheckForBackDateTrx(reversalDate);
+		} catch (PeriodClosedException e) {
+			m_processMsg = e.getLocalizedMessage();
+			return null;
+		}
 
 		//	Deep Copy
 		MMovement reversal = new MMovement(getCtx(), 0, get_TrxName());
@@ -897,7 +986,9 @@ public class MMovement extends X_M_Movement implements DocAction
 			// store original (voided/reversed) document line
 			rLine.setReversalLine_ID(oLine.getM_MovementLine_ID());
 			//
+			rLine.setC_UOM_ID(oLine.getC_UOM_ID());
 			rLine.setMovementQty(rLine.getMovementQty().negate());
+			rLine.setQtyEntered(rLine.getQtyEntered().negate());
 			rLine.setTargetQty(Env.ZERO);
 			rLine.setScrappedQty(Env.ZERO);
 			rLine.setConfirmedQty(Env.ZERO);
@@ -1074,5 +1165,66 @@ public class MMovement extends X_M_Movement implements DocAction
 			|| DOCSTATUS_Reversed.equals(ds);
 	}	//	isComplete
 	
+	/**
+	 * Period Closed Check for Back-Date Transaction
+	 * @param reversalDate reversal date - null when it is not a reversal
+	 * @return false when failed the period closed check
+	 */
+	private boolean periodClosedCheckForBackDateTrx(Timestamp reversalDate)
+	{
+		MClientInfo info = MClientInfo.get(getCtx(), getAD_Client_ID(), get_TrxName()); 
+		MAcctSchema as = info.getMAcctSchema1();
+		if (!MAcctSchema.COSTINGMETHOD_AveragePO.equals(as.getCostingMethod()) 
+				&& !MAcctSchema.COSTINGMETHOD_AverageInvoice.equals(as.getCostingMethod()))
+			return true;
+		
+		if (as.getBackDateDay() == 0)
+			return true;
+		
+		Timestamp dateAcct = reversalDate != null ? reversalDate : getMovementDate();
+		
+		StringBuilder sql = new StringBuilder();
+		sql.append("SELECT COUNT(*) FROM M_CostDetail ");
+		sql.append("WHERE M_Product_ID IN (SELECT M_Product_ID FROM M_MovementLine WHERE M_Movement_ID=?) ");
+		sql.append("AND Processed='Y' ");
+		sql.append(reversalDate != null ? "AND DateAcct>=? " : "AND DateAcct>? ");
+		int no = DB.getSQLValueEx(get_TrxName(), sql.toString(), get_ID(), dateAcct);
+		if (no <= 0)
+			return true;
+		
+		MMovementLine[] mLines = getLines(false);
+		for (MMovementLine mLine : mLines) {
+			String costingLevel = mLine.getProduct().getCostingLevel(as);
+			if (!MAcctSchema.COSTINGLEVEL_Organization.equals(costingLevel))
+				continue;
+			
+			int AD_Org_ID = mLine.getAD_Org_ID();
+			int M_AttributeSetInstance_ID = mLine.getM_AttributeSetInstance_ID();
+			
+			MCostElement ce = MCostElement.getMaterialCostElement(getCtx(), as.getCostingMethod(), AD_Org_ID);
+			
+			int M_CostDetail_ID = 0;
+			int M_MovementLine_ID = mLine.getM_MovementLine_ID();
+			if (mLine.getReversalLine_ID() > 0 && mLine.get_ID() > mLine.getReversalLine_ID())
+				M_MovementLine_ID = mLine.getReversalLine_ID();
+			MCostDetail cd = MCostDetail.getMovement(as, mLine.getM_Product_ID(), M_AttributeSetInstance_ID, 
+					M_MovementLine_ID, 0, false, get_TrxName());
+			if (cd != null)
+				M_CostDetail_ID = cd.getM_CostDetail_ID();
+			else {
+				MCostHistory history = MCostHistory.get(getCtx(), getAD_Client_ID(), AD_Org_ID, mLine.getM_Product_ID(), 
+						as.getM_CostType_ID(), as.getC_AcctSchema_ID(), ce.getCostingMethod(), ce.getM_CostElement_ID(),
+						M_AttributeSetInstance_ID, dateAcct, get_TrxName());
+				if (history != null)
+					M_CostDetail_ID = history.getM_CostDetail_ID();
+			} 
+			
+			if (M_CostDetail_ID > 0) {
+				MCostDetail.periodClosedCheckForDocsAfterBackDateTrx(getAD_Client_ID(), as.getC_AcctSchema_ID(), 
+						mLine.getM_Product_ID(), M_CostDetail_ID, dateAcct, get_TrxName());
+			}
+		}
+		return true;
+	}
 }	//	MMovement
 

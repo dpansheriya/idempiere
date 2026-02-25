@@ -51,6 +51,7 @@ import org.compiere.util.Env;
 import org.compiere.util.KeyNamePair;
 import org.compiere.util.Msg;
 import org.compiere.util.Util;
+import org.idempiere.db.util.SQLFragment;
 import org.zkoss.zk.ui.WrongValueException;
 import org.zkoss.zul.Borderlayout;
 import org.zkoss.zul.Center;
@@ -72,7 +73,7 @@ import org.zkoss.zul.Vbox;
  * @version	InfoInvoice.java Adempiere Swing UI 3.4.1
  **/
 
-@Deprecated // replaced with InfoInvoiceWindow IDEMPIERE-325
+@Deprecated (since="13", forRemoval=true) // replaced with InfoInvoiceWindow IDEMPIERE-325
 public class InfoInvoicePanel extends InfoPanel implements ValueChangeListener
 {
     /**
@@ -94,18 +95,32 @@ public class InfoInvoicePanel extends InfoPanel implements ValueChangeListener
     	this(WindowNo, value, multiSelection, whereClause, true);
     }
 
-	/**
+    /**
      * Detail protected constructor
      * @param WindowNo window no
      * @param value query value
      * @param multiSelection multiple selection
      * @param whereClause where clause
-    *
+     * @param lookup true if lookup
      */
     public InfoInvoicePanel(int WindowNo, String value,
             boolean multiSelection, String whereClause, boolean lookup)
     {
-        super ( WindowNo, "i", "C_Invoice_ID", multiSelection, whereClause, lookup);
+    	this(WindowNo, value, multiSelection, lookup, new SQLFragment(whereClause));
+    }
+    
+	/**
+     * Detail protected constructor
+     * @param WindowNo window no
+     * @param value query value
+     * @param multiSelection multiple selection
+     * @param lookup true if lookup
+     * @param sqlFilter SQL filter
+     */
+    public InfoInvoicePanel(int WindowNo, String value,
+            boolean multiSelection, boolean lookup, SQLFragment sqlFilter)
+    {
+        super ( WindowNo, "i", "C_Invoice_ID", multiSelection, lookup, sqlFilter);
 
         setTitle(Msg.getMsg(Env.getCtx(), "InfoInvoice"));
         //
@@ -177,20 +192,20 @@ public class InfoInvoicePanel extends InfoPanel implements ValueChangeListener
         txtDocumentNo = new Textbox();
         txtDescription = new Textbox();
         
-        txtDocumentNo.setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "documentNo");
-        txtDescription.setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "description");
+        txtDocumentNo.setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "documentNo");
+        txtDescription.setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "description");
 
         dateFrom = new Datebox();
         dateTo= new Datebox();
         
-        dateFrom.setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "dateFrom");
-        dateTo.setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "dateTo");
+        dateFrom.setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "dateFrom");
+        dateTo.setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "dateTo");
 
         amountFrom = new NumberBox(false);
         amountTo = new NumberBox(false);
         
-        amountFrom.setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "amountFrom");
-        amountTo.setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "amountTo");
+        amountFrom.setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "amountFrom");
+        amountTo.setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "amountTo");
 
         isPaid = new Checkbox();
         isPaid.setLabel(Msg.translate(Env.getCtx(), "IsPaid"));
@@ -204,7 +219,7 @@ public class InfoInvoicePanel extends InfoPanel implements ValueChangeListener
                 Env.getCtx(), "C_BPartner_ID"), "", false, false, true);
         editorBPartner.addValueChangeListener(this);
         ZKUpdateUtil.setHflex(editorBPartner.getComponent(), "1");
-        editorBPartner.getComponent().setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "bpartnerLookup");
+        editorBPartner.getComponent().setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "bpartnerLookup");
 
         MLookup lookupOrder = MLookupFactory.get(Env.getCtx(), p_WindowNo,
                 0, 4247, DisplayType.Search);
@@ -212,7 +227,7 @@ public class InfoInvoicePanel extends InfoPanel implements ValueChangeListener
                 Env.getCtx(), "C_Order_ID"), "", false, false, true);
         editorOrder.addValueChangeListener(this);
         ZKUpdateUtil.setHflex(editorOrder.getComponent(), "1");
-        editorOrder.getComponent().setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "orderLookup");
+        editorOrder.getComponent().setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "orderLookup");
     }
 
     private void init()
@@ -301,7 +316,8 @@ public class InfoInvoicePanel extends InfoPanel implements ValueChangeListener
      *  General Init
      *  @return true, if success
      */
-    private boolean initInfo ()
+    @SuppressWarnings("removal")
+	private boolean initInfo ()
     {
         //  Set Defaults
         String bp = Env.getContext(Env.getCtx(), p_WindowNo, "C_BPartner_ID");

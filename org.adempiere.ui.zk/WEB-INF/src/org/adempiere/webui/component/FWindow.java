@@ -22,10 +22,9 @@ package org.adempiere.webui.component;
  * Extend {@link org.zkoss.zul.Window}
  * @author  <a href="mailto:agramdass@gmail.com">Ashley G Ramdass</a>
  * @date    Feb 25, 2007
- * @version $Revision: 0.10 $
- * @deprecated Just use {@link Window} instead
+ * @deprecated Use {@link Window} instead
  */
-@Deprecated
+@Deprecated (since="13", forRemoval=true)
 public class FWindow extends Window
 {
     /**

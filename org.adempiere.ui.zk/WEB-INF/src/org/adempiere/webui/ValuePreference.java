@@ -17,7 +17,6 @@
 package org.adempiere.webui;
 
 import java.util.Properties;
-import java.util.UUID;
 import java.util.logging.Level;
 
 import org.adempiere.exceptions.AdempiereException;
@@ -50,6 +49,7 @@ import org.compiere.util.DisplayType;
 import org.compiere.util.Env;
 import org.compiere.util.Login;
 import org.compiere.util.Msg;
+import org.compiere.util.Util;
 import org.zkoss.zk.ui.Component;
 import org.zkoss.zk.ui.Executions;
 import org.zkoss.zk.ui.Page;
@@ -66,7 +66,6 @@ import org.zkoss.zul.Vlayout;
  *  To delete a preference, select a null value and save.
  *
  *  @author Jorg Janke
- *  @version  $Id: ValuePreference.java,v 1.2 2006/07/30 00:51:28 jjanke Exp $
  */
 public class ValuePreference extends Window implements EventListener<Event>
 {
@@ -267,7 +266,7 @@ public class ValuePreference extends Window implements EventListener<Event>
 	private boolean isProcessInIW = false;
 
 	/**
-	 *  Static Layout
+	 *  Layout dialog
 	 *  @throws Exception
 	 */
 	private void init() throws Exception
@@ -446,6 +445,7 @@ public class ValuePreference extends Window implements EventListener<Event>
 	 *  Event Listener
 	 *  @param e event
 	 */
+	@Override
 	public void onEvent(Event e) throws Exception
 	{
 		if (e.getTarget().getId().equals("Cancel"))
@@ -470,6 +470,9 @@ public class ValuePreference extends Window implements EventListener<Event>
 			setExplanation();
 	}
 
+	/**
+	 * Handle esc key event
+	 */
 	private void onCancel() {
 		// do not allow to close tab for Events.ON_CTRL_KEY event
 		if(isUseEscForTabClosing)
@@ -582,9 +585,9 @@ public class ValuePreference extends Window implements EventListener<Event>
 	}   //  delete
 
 	/**
-	 *  Get Context Key.
-	 *  Preferences in context update follow key.
-	 *  They load when login, and update when change.
+	 *  Get Context Key.<br/>
+	 *  Preferences in context update follow key.<br/>
+	 *  Preferences are loaded after login, and update when change.
 	 *  @see Login#loadPreferences(org.compiere.util.KeyNamePair, org.compiere.util.KeyNamePair, java.sql.Timestamp, String)
 	 *  and set to field when display field, {@link GridField#getDefault()}
 	 *  @return Context Key
@@ -657,7 +660,7 @@ public class ValuePreference extends Window implements EventListener<Event>
 		StringBuilder sql = new StringBuilder ("INSERT INTO AD_Preference ("
 			+ "AD_Preference_ID, AD_Preference_UU, AD_Client_ID, AD_Org_ID, IsActive, Created,CreatedBy,Updated,UpdatedBy,"
 			+ "AD_Window_ID, AD_Process_ID, AD_InfoWindow_ID, PreferenceFor, AD_User_ID, Attribute, Value) VALUES (");
-		sql.append(AD_Preference_ID).append(",").append(DB.TO_STRING(UUID.randomUUID().toString())).append(",").append(Client_ID).append(",").append(Org_ID)
+		sql.append(AD_Preference_ID).append(",").append(DB.TO_STRING(Util.generateUUIDv7().toString())).append(",").append(Client_ID).append(",").append(Org_ID)
 			.append(", 'Y',getDate(),").append(m_AD_User_ID).append(",getDate(),").append(m_AD_User_ID).append(", ");
 		
 		if (cbWindow.isChecked())

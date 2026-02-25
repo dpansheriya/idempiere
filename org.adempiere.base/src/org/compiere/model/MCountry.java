@@ -32,7 +32,6 @@ import java.util.logging.Level;
 
 import org.compiere.util.CLogger;
 import org.compiere.util.Env;
-import org.compiere.util.Language;
 import org.compiere.util.Util;
 import org.idempiere.cache.ImmutableIntPOCache;
 import org.idempiere.cache.ImmutablePOSupport;
@@ -93,7 +92,7 @@ public class MCountry extends X_C_Country
 	 *	@return Country
 	 *  @deprecated
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static MCountry getDefault (Properties ctx)
 	{
 		return getDefault();
@@ -121,7 +120,7 @@ public class MCountry extends X_C_Country
 	 *  @return MCountry Array
 	 *  @deprecated
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static MCountry[] getCountries(Properties ctx)
 	{
 		return getCountries();
@@ -201,26 +200,24 @@ public class MCountry extends X_C_Country
 		if (s_log.isLoggable(Level.FINE)) s_log.fine("#" + countries.size() 
 			+ " - Default=" + s_default);
 	}
-
-	/**
-	 * 	Set the Language for Display (toString)
-	 *	@param AD_Language language or null
-	 *  @deprecated - not used at all, you can delete references to this method
-	 */
-	@Deprecated(forRemoval = true, since = "11")
-	public static void setDisplayLanguage (String AD_Language)
-	{
-		s_AD_Language = AD_Language;
-		if (Language.isBaseLanguage(AD_Language))
-			s_AD_Language = null;
-	}	//	setDisplayLanguage
 	
 	/**	Display Language				*/
 	@SuppressWarnings("unused")
 	private static String		s_AD_Language = null;
-	
+
 	/**	Country Cache					*/
-	private static ImmutableIntPOCache<Integer,MCountry>	s_countries = null;
+	private static ImmutableIntPOCache<Integer,MCountry>    s_countries = new ImmutableIntPOCache<Integer,MCountry>(Table_Name, 250, 0, false) {
+		private static final long serialVersionUID = 1106078701451046946L;
+
+		@Override
+		public int reset(int recordId) {
+			if (recordId <= 0)
+				return super.reset(recordId);
+			else 
+				return 0;
+		}
+	};
+
 	/**	Default Country 				*/
 	private static ImmutableIntPOCache<Integer,MCountry>	s_default = new ImmutableIntPOCache<Integer,MCountry>(Table_Name, Table_Name+"|Default", 3);
 	/**	Static Logger					*/

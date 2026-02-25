@@ -26,6 +26,7 @@ package org.idempiere.test.event;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -37,6 +38,7 @@ import org.adempiere.base.Core;
 import org.adempiere.base.event.EventManager;
 import org.adempiere.base.event.EventProperty;
 import org.adempiere.base.event.FactsEventData;
+import org.adempiere.base.event.ImportEventData;
 import org.adempiere.base.event.annotations.AfterLogin;
 import org.adempiere.base.event.annotations.EventDelegate;
 import org.adempiere.base.event.annotations.ModelEventDelegate;
@@ -66,6 +68,7 @@ import org.compiere.model.ModelValidationEngine;
 import org.compiere.model.ModelValidator;
 import org.compiere.model.X_I_BPartner;
 import org.compiere.model.X_I_Product;
+import org.compiere.print.MPrintFormat;
 import org.compiere.process.DocAction;
 import org.compiere.process.DocumentEngine;
 import org.compiere.process.ImportBPartner;
@@ -80,13 +83,15 @@ import org.compiere.util.TimeUtil;
 import org.compiere.util.Util;
 import org.compiere.wf.MWorkflow;
 import org.idempiere.test.AbstractTestCase;
+import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
+import org.junit.jupiter.api.parallel.Isolated;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
-import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.osgi.service.event.Event;
 
 @TestMethodOrder(OrderAnnotation.class)
+@Isolated
 /**
  * 
  * @author hengsin
@@ -233,7 +238,7 @@ public class EventHandlerTest extends AbstractTestCase {
 		pi.setRecord_ID(Patio_Chair);
 		pi.setTransactionName(getTrxName());
 		if(process.getAD_PrintFormat_ID() > 0)
-			pi.setTransientObject(process.getAD_PrintFormat());
+			pi.setTransientObject(MPrintFormat.get(process.getAD_PrintFormat_ID()));
 		
 		ServerProcessCtl.process(pi, getTrx());
 		if (pi.isError()) {
@@ -432,6 +437,8 @@ public class EventHandlerTest extends AbstractTestCase {
 		
 		@AfterImport
 		public void afterImport() {
+			ImportEventData data = getImportEventData();
+			assertNotNull(data);
 			Env.setContext(Env.getCtx(), getClass().getName(), true);
 		}
 	}

@@ -374,7 +374,8 @@ public class ModelInterfaceGenerator
 			//
 			if (fieldName != null && referenceClassName != null)
 			{
-				sb.append("\n")
+				sb.append(NL)
+				  .append("\t@Deprecated(since=\"13\") // use better methods with cache").append(NL)
 				  .append("\tpublic "+referenceClassName+" get").append(fieldName).append("() throws RuntimeException;");
 			}
 		}
@@ -811,7 +812,7 @@ public class ModelInterfaceGenerator
 		if (tableName == null || tableName.trim().length() == 0)
 			throw new IllegalArgumentException("Must specify table name");
 
-		StringBuilder tableLike = new StringBuilder().append(tableName.trim().toUpperCase().replaceAll("'", ""));
+		StringBuilder tableLike = new StringBuilder().append(tableName.trim().toUpperCase().replace("'", ""));
 
 		StringBuilder entityTypeFilter = new StringBuilder();
 		if (entityType != null && entityType.trim().length() > 0)
@@ -871,7 +872,7 @@ public class ModelInterfaceGenerator
 				if (finalTableLike.length() > 0)
 					finalTableLike.append(", ");
 
-				finalTableLike.append(DB.TO_STRING(table.replaceAll("'", "").trim()));
+				finalTableLike.append(DB.TO_STRING(table.replace("'", "").trim()));
 			}
 
 			sql.append(" AND UPPER(TableName) IN (").append(finalTableLike).append(")");
@@ -909,13 +910,19 @@ public class ModelInterfaceGenerator
 		{
 			pstmt = DB.prepareStatement(sql.toString(), null);
 			rs = pstmt.executeQuery();
+
+			boolean isEmpty = true;
 			while (rs.next())
 			{
+				isEmpty = false;
 				if (type.equals(GEN_SOURCE_INTERFACE))
 					new ModelInterfaceGenerator(rs.getInt(1), directory.toString(), packageName, columnFilter);
 				else if (type.equals(GEN_SOURCE_CLASS))
 					new ModelClassGenerator(rs.getInt(1), directory.toString(), packageName, columnFilter);
 			}
+			
+			if (isEmpty)
+				System.out.println("No data found for the table with name " + tableName);
 		}
 		catch (SQLException e)
 		{

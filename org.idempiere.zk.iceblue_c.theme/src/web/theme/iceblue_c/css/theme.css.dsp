@@ -9,7 +9,7 @@ html,body {
 	width: 100%;
 	background-color: #D4E3F4;
 	color: #333;
-	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
 	overflow: hidden;
 }
 
@@ -17,27 +17,31 @@ html,body {
 	margin:0px;
 }
 
+.z-initing {
+    background-image: url(${c:encodeURL('~./theme/iceblue_c/images/zssosepowered.png')}) !important;
+}
+
 [class*="z-"]:not([class*="z-icon-"]):not([class*="z-group-icon-"]) {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
 }
 @media screen and (min-device-width: 2500px) {
-	[class*="z-"]:not([class*="z-icon-"]):not([class*="z-group-icon-"]) {
-		font-size: 15px;
-	}
-}
-@media screen and (max-device-width: 2499px) {
 	[class*="z-"]:not([class*="z-icon-"]):not([class*="z-group-icon-"]) {
 		font-size: 14px;
 	}
 }
-@media screen and (max-device-width: 1899px) {
+@media screen and (max-device-width: 2499px) {
 	[class*="z-"]:not([class*="z-icon-"]):not([class*="z-group-icon-"]) {
 		font-size: 13px;
 	}
 }
-@media screen and (max-device-width: 1399px) {
+@media screen and (max-device-width: 1899px) {
 	[class*="z-"]:not([class*="z-icon-"]):not([class*="z-group-icon-"]) {
 		font-size: 12px;
+	}
+}
+@media screen and (max-device-width: 1399px) {
+	[class*="z-"]:not([class*="z-icon-"]):not([class*="z-group-icon-"]) {
+		font-size: 11px;
 	}
 }
 
@@ -47,16 +51,21 @@ html,body {
 }
 <%-- default font size for mobile --%>
 .mobile [class*="z-"]:not([class*="z-icon-"]):not([class*="z-group-icon-"]) {
-    font-size: 16px;
+    font-size: 15px;
 }
 <%-- the not=xyz is needed to get this selected over standard zk rule --%>
 .mobile [class*="z-icon-"]:not([class*="xyz"]), .mobile [class*="z-group-icon-"] {
-    font-size: 16px;
+    font-size: 15px;
 }
 
 <%-- vbox fix for firefox and ie --%>
 table.z-vbox > tbody > tr > td > table {
 	width: 100%;	
+}
+
+<%-- decorate file drop area --%>
+.attachment-drag-entered {
+    border: 5px dashed #3fb900 !important;
 }
 
 <c:include page="fragment/login.css.dsp" />
@@ -114,8 +123,6 @@ table.z-vbox > tbody > tr > td > table {
 <c:include page="fragment/window-size.css.dsp" />
 
 <c:include page="fragment/font-icons.css.dsp" />
-
-<c:include page="fragment/drag-drop-attachment.css.dsp" />
 
 <c:include page="fragment/keikai.css.dsp" />
 

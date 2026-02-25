@@ -218,6 +218,7 @@ public class CalloutEngine implements Callout
 	 *  @deprecated
 	 *	@param active active
 	 */
+	@Deprecated (since="13", forRemoval=true)
 	protected static void setCalloutActive (boolean active)
 	{
 		;

@@ -19,6 +19,7 @@ import org.adempiere.webui.action.IAction;
 import org.adempiere.webui.component.ToolBarButton;
 import org.compiere.model.MColumn;
 import org.compiere.model.MToolBarButton;
+import org.compiere.util.DefaultEvaluatee;
 import org.compiere.util.Env;
 import org.compiere.util.Evaluatee;
 import org.compiere.util.Evaluator;
@@ -96,9 +97,14 @@ public class ToolbarCustomButton implements EventListener<Event>, Evaluatee {
 		
 		int tabNo = this.tabNo >= 0 ? this.tabNo : adTabpanel.getTabNo();
 		if( tabNo == 0)
+		{
 	    	return adTabpanel.get_ValueAsString(variableName);
+		}
 	    else
-	    	return Env.getContext (Env.getCtx(), windowNo, tabNo, variableName, false, true);
+	    {
+	    	DefaultEvaluatee evaluatee = new DefaultEvaluatee(adTabpanel.getGridTab(), windowNo, tabNo, false, true);
+	    	return evaluatee.get_ValueAsString(variableName);
+	    }
 	}
 	
 	/**
@@ -192,7 +198,7 @@ public class ToolbarCustomButton implements EventListener<Event>, Evaluatee {
 	}
 
 	/**
-	 * Evaluate SQL or boolean logic expression.
+	 * Evaluate SQL or boolean logic expression.<br/>
 	 * For SQL expression, return true if the SQL expression has result (it doesn't check the return value of the SQL statement).
 	 * @param logic
 	 * @param tabNo
@@ -219,4 +225,22 @@ public class ToolbarCustomButton implements EventListener<Event>, Evaluatee {
 	public Toolbarbutton getToolbarbutton() {
 		return toolbarButton;
 	}
+
+	/**
+	 * @param tabPanel
+	 * @param changed
+	 * @param readOnly
+	 */
+	public void updateToolbarCustomBtn(IADTabpanel tabPanel, boolean changed, boolean readOnly)
+	{
+		IServiceHolder<IAction> serviceHolder = Actions.getAction(actionId);
+		if (serviceHolder != null)
+		{
+			IAction action = serviceHolder.getService();
+			if (action != null)
+			{
+				action.updateToolbarCustomBtn(toolbarButton, tabPanel, changed, readOnly);
+			}
+		}
+	} // updateToolbarCustomBtn
 }

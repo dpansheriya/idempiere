@@ -38,7 +38,6 @@ import org.adempiere.webui.window.Dialog;
 import org.compiere.model.DataStatusEvent;
 import org.compiere.model.GridField;
 import org.compiere.model.GridTab;
-import org.compiere.model.MRole;
 import org.compiere.model.MSysConfig;
 import org.compiere.util.Env;
 import org.compiere.util.Msg;
@@ -232,6 +231,7 @@ public class WQuickForm extends Window implements IQuickForm
 	/**
 	 * Cancel/Close form.
 	 */
+	@Override
 	public void onCancel( )
 	{
 		if (gridTab.getTableModel().getRowChanged() > -1)
@@ -256,6 +256,7 @@ public class WQuickForm extends Window implements IQuickForm
 	/**
 	 * Reset sort state
 	 */
+	@Override
 	public void onUnSort( )
 	{
 		adWinContent.getActiveGridTab().getTableModel().resetCacheSortState();
@@ -272,6 +273,7 @@ public class WQuickForm extends Window implements IQuickForm
 	/**
 	 * Open {@link CustomizeGridViewDialog} for {@link #quickGridView}.
 	 */
+	@Override
 	public void onCustomize( )
 	{
 		onSave();
@@ -299,6 +301,7 @@ public class WQuickForm extends Window implements IQuickForm
 	/**
 	 * Ignore/Undo changes
 	 */
+	@Override
 	public void onIgnore( )
 	{
 		gridTab.dataIgnore();
@@ -315,6 +318,7 @@ public class WQuickForm extends Window implements IQuickForm
 	/**
 	 * Delete selected rows.
 	 */
+	@Override
 	public void onDelete( )
 	{
 		if (gridTab == null || !quickGridView.isNewLineSaved)
@@ -380,6 +384,7 @@ public class WQuickForm extends Window implements IQuickForm
 	/**
 	 * Save {@link #quickGridView} changes.
 	 */
+	@Override
 	public void onSave( )
 	{
 		if (gridTab.getTableModel().getRowChanged() == gridTab.getCurrentRow())
@@ -400,6 +405,7 @@ public class WQuickForm extends Window implements IQuickForm
 	/**
 	 * Refresh {@link #gridTab} and {@link #quickGridView}.
 	 */
+	@Override
 	public void onRefresh( )
 	{
 		gridTab.dataRefreshAll();
@@ -450,7 +456,7 @@ public class WQuickForm extends Window implements IQuickForm
 		{
 			adWinContent.setCurrQGV(null);
 		}
-		adWinContent.getADTab().getSelectedTabpanel().query(onlyCurrentRows, onlyCurrentDays, MRole.getDefault().getMaxQueryRecords()); // autoSize
+		adWinContent.getADTab().getSelectedTabpanel().query(onlyCurrentRows, onlyCurrentDays, adWinContent.getADTab().getSelectedTabpanel().getGridTab().getMaxQueryRecords()); // autoSize
 
 		if (stayInParent) {
 			adWinContent.onParentRecord();

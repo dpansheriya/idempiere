@@ -49,6 +49,7 @@ import org.compiere.util.DisplayType;
 import org.compiere.util.Env;
 import org.compiere.util.Msg;
 import org.compiere.util.Util;
+import org.idempiere.db.util.SQLFragment;
 import org.zkoss.zk.ui.Component;
 import org.zkoss.zk.ui.HtmlBasedComponent;
 import org.zkoss.zk.ui.event.Event;
@@ -61,7 +62,7 @@ import org.zkoss.zul.Vlayout;
 
 /**
  * Quick Entry Window
- * Author: Carlos Ruiz
+ * @author Carlos Ruiz
  */
 
 public class WQuickEntry extends AbstractWQuickEntry implements EventListener<Event>, ValueChangeListener
@@ -333,7 +334,7 @@ public class WQuickEntry extends AbstractWQuickEntry implements EventListener<Ev
 			}
 			MQuery query = new MQuery(gridtab.getAD_Table_ID());
 			if (id == 0) {	//new record			
-				query.addRestriction("1=2");
+				query.addRestriction(new SQLFragment("1=2"));
 				gridtab.setQuery(query);
 				gridtab.query(false);
 				if (gridtab.isInsertRecord())
@@ -408,7 +409,7 @@ public class WQuickEntry extends AbstractWQuickEntry implements EventListener<Ev
 	}	//	loadRecord
 
 	/**
-	 *	Save.
+	 *	Save changes.
 	 * 	@return true if saved
 	 */
 	protected boolean actionSave()
@@ -509,7 +510,7 @@ public class WQuickEntry extends AbstractWQuickEntry implements EventListener<Ev
 	}	//	actionSave
 	
 	/**
-	 * 
+	 * Is field changed
 	 * @param index of field
 	 * @return true if changed
 	 */
@@ -549,6 +550,9 @@ public class WQuickEntry extends AbstractWQuickEntry implements EventListener<Ev
 
 	}
 
+	/**
+	 * Cancel and close dialog
+	 */
 	private void onCancel() {
 		this.detach();
 	}

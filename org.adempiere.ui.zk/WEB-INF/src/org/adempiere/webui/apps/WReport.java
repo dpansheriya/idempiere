@@ -32,6 +32,7 @@ import org.compiere.process.ProcessInfo;
 import org.compiere.util.CLogger;
 import org.compiere.util.Env;
 import org.compiere.util.KeyNamePair;
+import org.idempiere.db.util.SQLFragment;
 import org.zkoss.zk.ui.Component;
 import org.zkoss.zk.ui.event.Event;
 import org.zkoss.zk.ui.event.EventListener;
@@ -40,7 +41,7 @@ import org.zkoss.zul.Menuitem;
 import org.zkoss.zul.Menupopup;
 
 /**
- * Launch report for table (immediate or through popup menu, depends on number of print format discover
+ * Launch report for table (immediate or through popup menu, depends on the number of print format discover
  * for AD_Table_ID and AD_Window_ID). 
  * @author Low Heng Sin
  *
@@ -80,8 +81,25 @@ public class WReport implements EventListener<Event> {
 	 *  @param WindowNo The invoking parent window number
 	 *  @param whereExtended
 	 */
+	@Deprecated(since = "13", forRemoval = true)
 	public WReport (int AD_Table_ID, MQuery	query, Component parent, 
 			int WindowNo, String whereExtended)
+	{
+		this(AD_Table_ID, query, parent, new SQLFragment(whereExtended), WindowNo);
+	}	//	AReport
+
+	/**
+	 *	Launch report immediately (if only one print format found) or show menu popup 
+	 *  for the list of print formats discover for AD_Table_ID and AD_Window_ID (from WindowNo).
+	 *
+	 *  @param AD_Table_ID table
+	 *  @param query query
+	 *  @param parent The invoking parent window
+	 *  @param extendedFilter The filter to apply to this report
+	 *  @param WindowNo The invoking parent window number
+	 */
+	public WReport (int AD_Table_ID, MQuery	query, Component parent, 
+			SQLFragment extendedFilter, int WindowNo)
 	{
 		if (log.isLoggable(Level.CONFIG)) log.config("AD_Table_ID=" + AD_Table_ID + " " + query);
 		if (!MRole.getDefault().isCanReport(AD_Table_ID))
@@ -93,7 +111,7 @@ public class WReport implements EventListener<Event> {
 		m_query = query;
 		this.parent = parent;
 		this.WindowNo = WindowNo;
-		this.whereExtended = whereExtended;
+		this.extendedFilter = extendedFilter;
 
 		int AD_Window_ID = Env.getContextAsInt(Env.getCtx(), WindowNo, "_WinInfo_AD_Window_ID", true);
 		if (AD_Window_ID == 0)
@@ -101,8 +119,8 @@ public class WReport implements EventListener<Event> {
 		
 		//	See What is there
 		getPrintFormats (AD_Table_ID, AD_Window_ID);
-	}	//	AReport
-
+	}
+	
 	/**	Query parameter **/
 	private MQuery	 	m_query;
 	/** menu popup to show the list of print formats discover **/
@@ -116,10 +134,10 @@ public class WReport implements EventListener<Event> {
 	/** The parent window number **/
 	protected int WindowNo;
 	/** The filter to apply to this report **/
-	private String whereExtended;
+	private SQLFragment extendedFilter;
 	
 	/**
-	 * 	Get Print Formats for table and window.
+	 * 	Get Print Formats for table and window.<br/>
 	 *  If there's only 1 print format found, call {@link #launchReport(KeyNamePair)}, otherwise call {@link #showPopup()}.
 	 * 	@param AD_Table_ID table
 	 *  @param AD_Window_ID
@@ -201,7 +219,7 @@ public class WReport implements EventListener<Event> {
 		{
 			// It's a default report using the standard printing engine
 			ReportEngine re = new ReportEngine (Env.getCtx(), pf, m_query, info, null, WindowNo);
-			re.setWhereExtended(whereExtended);
+			re.setExtendedFilter(extendedFilter);
 			ReportCtl.preview(re);
 		}
 	}	//	launchReport

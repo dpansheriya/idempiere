@@ -60,7 +60,7 @@ import org.zkoss.zul.Vlayout;
  *
  */
 
-@Deprecated /* use WQuickEntry instead */
+@Deprecated (since="13", forRemoval=true) /* use WQuickEntry instead */
 public class WBPartner extends Window implements EventListener<Event>, ValueChangeListener
 {
 	/**
@@ -267,7 +267,7 @@ public class WBPartner extends Window implements EventListener<Event>, ValueChan
 		String sql = "SELECT C_Greeting_ID, Name FROM C_Greeting WHERE IsActive='Y' ORDER BY 2";
 		sql = MRole.getDefault().addAccessSQL(sql, "C_Greeting", MRole.SQL_NOTQUALIFIED, MRole.SQL_RO);
 		
-		return DB.getKeyNamePairs(sql, true);
+		return DB.getKeyNamePairsEx(sql, true);
 	}	//	fillGreeting
 
 	/**

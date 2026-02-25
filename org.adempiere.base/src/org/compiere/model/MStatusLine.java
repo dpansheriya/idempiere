@@ -16,6 +16,9 @@
  *****************************************************************************/
 package org.compiere.model;
 
+import static org.adempiere.base.markdown.IMarkdownRenderer.MARKDOWN_CLOSING_TAG;
+import static org.adempiere.base.markdown.IMarkdownRenderer.MARKDOWN_OPENING_TAG;
+
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -28,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Properties;
 import java.util.logging.Level;
 
+import org.adempiere.base.Core;
 import org.adempiere.base.event.EventManager;
 import org.adempiere.base.event.EventProperty;
 import org.compiere.util.CCache;
@@ -262,7 +266,8 @@ public class MStatusLine extends X_AD_StatusLine implements ImmutablePOSupport
 		}
 
 		MessageFormat mf = null;
-		String msgValue = getAD_Message().getValue();
+		MMessage message = MMessage.get(Env.getCtx(), getAD_Message_ID());
+		String msgValue = message.getValue();
 		try
 		{
 			mf = new MessageFormat(Msg.getMsg(Env.getAD_Language(getCtx()), msgValue), Env.getLanguage(getCtx()).getLocale());
@@ -310,8 +315,13 @@ public class MStatusLine extends X_AD_StatusLine implements ImmutablePOSupport
 			DB.close(rs, stmt);
 			rs = null; stmt = null;
 		}
-		if (filled)
-			return mf.format(arguments);
+		if (filled) {
+			String content = mf.format(arguments);
+			if (content.indexOf(MARKDOWN_OPENING_TAG) >= 0 && content.indexOf(MARKDOWN_CLOSING_TAG) > 0) {
+				content = Core.getMarkdownRenderer().renderToHtml(content);
+			}
+			return content;
+		}
 		return null;
 	}
 

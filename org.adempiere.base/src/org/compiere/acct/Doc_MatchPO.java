@@ -35,8 +35,10 @@ import org.compiere.model.MCostDetail;
 import org.compiere.model.MCurrency;
 import org.compiere.model.MInOut;
 import org.compiere.model.MInOutLine;
+import org.compiere.model.MInvoiceLine;
 import org.compiere.model.MMatchPO;
 import org.compiere.model.MOrder;
+import org.compiere.model.MOrderLandedCost;
 import org.compiere.model.MOrderLandedCostAllocation;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MProduct;
@@ -121,14 +123,16 @@ public class Doc_MatchPO extends Doc
 			{
 				if (matchPO.getM_InOutLine_ID() > 0 && matchPO.getC_InvoiceLine_ID() == 0 && matchPO.getReversal_ID()==0)
 				{
-					String docStatus = matchPO.getM_InOutLine().getM_InOut().getDocStatus();
+					MInOutLine iol = new MInOutLine(getCtx(), matchPO.getM_InOutLine_ID(), getTrxName());
+					String docStatus = iol.getParent().getDocStatus();
 					if (docStatus.equals(DocAction.STATUS_Completed) || docStatus.equals(DocAction.STATUS_Closed)) {
 						noInvoiceLines.add(matchPO);
 					}
 				} 
 				else if (matchPO.getM_InOutLine_ID() == 0 && matchPO.getReversal_ID()==0)
 				{
-					String docStatus = matchPO.getC_InvoiceLine().getC_Invoice().getDocStatus();
+					MInvoiceLine invoiceLine = new MInvoiceLine(getCtx(), matchPO.getC_InvoiceLine_ID(), getTrxName());
+					String docStatus = invoiceLine.getParent().getDocStatus();
 					if (docStatus.equals(DocAction.STATUS_Completed) || docStatus.equals(DocAction.STATUS_Closed)) {
 						if (matchPO.isPosted())
 							postedNoShipmentLines.put(matchPO.getM_MatchPO_ID(), new BigDecimal[]{matchPO.getQty()});
@@ -256,7 +260,8 @@ public class Doc_MatchPO extends Doc
 			{
 				if (matchPO.getM_InOutLine_ID() > 0 && matchPO.getC_InvoiceLine_ID() == 0)
 				{
-					String docStatus = matchPO.getM_InOutLine().getM_InOut().getDocStatus();
+					MInOutLine iol = new MInOutLine(getCtx(), matchPO.getM_InOutLine_ID(), getTrxName());
+					String docStatus = iol.getParent().getDocStatus();
 					if (docStatus.equals(DocAction.STATUS_Completed) || docStatus.equals(DocAction.STATUS_Closed)) {
 						if (matchPO.getQty().compareTo(getQty()) <= 0) {
 							m_M_InOutLine_ID = matchPO.getM_InOutLine_ID();
@@ -369,7 +374,8 @@ public class Doc_MatchPO extends Doc
 			landedCost = landedCost.add(amt);
 			if (landedCost.scale() > as.getCostingPrecision())
 				landedCost = landedCost.setScale(as.getCostingPrecision(), RoundingMode.HALF_UP);
-			int elementId = allocation.getC_OrderLandedCost().getM_CostElement_ID();
+			MOrderLandedCost olc = new MOrderLandedCost(getCtx(), allocation.getC_OrderLandedCost_ID(), getTrxName());
+			int elementId = olc.getM_CostElement_ID();
 			BigDecimal elementAmt = landedCostMap.get(elementId);
 			if (elementAmt == null) 
 			{
@@ -417,7 +423,8 @@ public class Doc_MatchPO extends Doc
 		String costingMethod = product.getCostingMethod(as);
 		//get standard cost and also make sure cost for other costing method is updated
 		BigDecimal costs = m_pc.getProductCosts(as, getAD_Org_ID(),
-			MAcctSchema.COSTINGMETHOD_StandardCosting, m_C_OrderLine_ID, false);	//	non-zero costs
+			MAcctSchema.COSTINGMETHOD_StandardCosting, m_C_OrderLine_ID, false, 
+			getDateAcct(), (MCostDetail) null, isInBackDatePostingProcess());	//	non-zero costs
 
 		if (MAcctSchema.COSTINGMETHOD_StandardCosting.equals(costingMethod))
 		{
@@ -488,6 +495,10 @@ public class Doc_MatchPO extends Doc
 					cr.setC_UOM_ID(m_oLine.getC_UOM_ID());
 					cr.setUser1_ID(m_oLine.getUser1_ID());
 					cr.setUser2_ID(m_oLine.getUser2_ID());
+					cr.setC_Charge_ID(m_oLine.getC_Charge_ID());
+					cr.setC_CostCenter_ID(m_oLine.getC_CostCenter_ID());
+					cr.setC_Department_ID(m_oLine.getC_Department_ID());
+					cr.setM_AttributeSetInstance_ID(m_oLine.getM_AttributeSetInstance_ID());
 					acct_cr = cr.getAccount(); // PPV Offset
 				}
 	
@@ -508,6 +519,10 @@ public class Doc_MatchPO extends Doc
 					dr.setC_UOM_ID(m_oLine.getC_UOM_ID());
 					dr.setUser1_ID(m_oLine.getUser1_ID());
 					dr.setUser2_ID(m_oLine.getUser2_ID());
+					dr.setC_Charge_ID(m_oLine.getC_Charge_ID());
+					dr.setC_CostCenter_ID(m_oLine.getC_CostCenter_ID());
+					dr.setC_Department_ID(m_oLine.getC_Department_ID());
+					dr.setM_AttributeSetInstance_ID(m_oLine.getM_AttributeSetInstance_ID());
 					acct_db =  dr.getAccount(); // PPV
 				}
 				
@@ -584,7 +599,8 @@ public class Doc_MatchPO extends Doc
 			for (int i = 0 ; i < mPO.length ; i++)
 			{
 				if (mPO[i].getM_AttributeSetInstance_ID() == mMatchPO.getM_AttributeSetInstance_ID()
-					&& mPO[i].getM_MatchPO_ID() != mMatchPO.getM_MatchPO_ID())
+					&& mPO[i].getM_MatchPO_ID() != mMatchPO.getM_MatchPO_ID()
+					&& mPO[i].getDateAcct().compareTo(mMatchPO.getDateAcct()) == 0)
 				{
 					BigDecimal qty = (isReturnTrx ? mPO[i].getQty().negate() : mPO[i].getQty());
 					BigDecimal orderCost = BigDecimal.ZERO;
@@ -598,8 +614,10 @@ public class Doc_MatchPO extends Doc
 							MProduct product = new MProduct(getCtx(), m_oLine.getM_Product_ID(), getTrxName());
 							if(MAcctSchema.COSTINGMETHOD_AveragePO.equals(product.getCostingMethod(as))) 
 							{
-								orderCost = mPO[i].getM_InOutLine().getC_OrderLine().getPriceActual();
-								Timestamp dateAcct = mPO[i].getM_InOutLine().getM_InOut().getDateAcct();
+								MInOutLine iol = new MInOutLine(getCtx(), mPO[i].getM_InOutLine_ID(), getTrxName());
+								MOrderLine ol = new MOrderLine(getCtx(), iol.getC_OrderLine_ID(), getTrxName());
+								orderCost = ol.getPriceActual();
+								Timestamp dateAcct = iol.getParent().getDateAcct();
 								BigDecimal rate = MConversionRate.getRate(
 									order.getC_Currency_ID(), as.getC_Currency_ID(),
 									dateAcct, order.getC_ConversionType_ID(),
@@ -636,12 +654,21 @@ public class Doc_MatchPO extends Doc
 			
 			if (tAmt.scale() > as.getCostingPrecision())
 				tAmt = tAmt.setScale(as.getCostingPrecision(), RoundingMode.HALF_UP);
-			// Set Total Amount and Total Quantity from Matched PO 
+			int Ref_CostDetail_ID = 0;
+			if (mMatchPO.getReversal_ID() > 0 && mMatchPO.get_ID() > mMatchPO.getReversal_ID())
+			{
+				MMatchPO reversal = new MMatchPO(getCtx(), mMatchPO.getReversal_ID(), getTrxName());
+				MCostDetail cd = MCostDetail.getOrder(as, getM_Product_ID(), mMatchPO.getM_AttributeSetInstance_ID(),
+						reversal.getC_OrderLine_ID(), 0, reversal.getDateAcct(), getTrxName());
+				if (cd != null)
+					Ref_CostDetail_ID = cd.getM_CostDetail_ID();
+			}
+			// Set Total Amount and Total Quantity from Matched PO
 			if (!MCostDetail.createOrder(as, m_oLine.getAD_Org_ID(), 
 					getM_Product_ID(), mMatchPO.getM_AttributeSetInstance_ID(),
 					m_oLine.getC_OrderLine_ID(), 0,		//	no cost element
 					tAmt, tQty,			//	Delivered
-					m_oLine.getDescription(), getTrxName()))
+					m_oLine.getDescription(), getDateAcct(), Ref_CostDetail_ID, getTrxName()))
 			{
 				return "SaveError";
 			}
@@ -671,14 +698,25 @@ public class Doc_MatchPO extends Doc
 		for(Integer elementId : landedCostMap.keySet())
 		{
 			BigDecimal amt = landedCostMap.get(elementId);
+			if (mMatchPO.isReversal())
+				amt = amt.negate();
 			amt = amt.multiply(tQty);
 			if (amt.scale() > as.getCostingPrecision())
 				amt = amt.setScale(as.getCostingPrecision(), RoundingMode.HALF_UP);
+			int Ref_CostDetail_ID = 0;
+			if (mMatchPO.getReversal_ID() > 0 && mMatchPO.get_ID() > mMatchPO.getReversal_ID())
+			{
+				MMatchPO reversal = new MMatchPO(getCtx(), mMatchPO.getReversal_ID(), getTrxName());
+				MCostDetail cd = MCostDetail.getOrder(as, getM_Product_ID(), mMatchPO.getM_AttributeSetInstance_ID(),
+						reversal.getC_OrderLine_ID(), 0, reversal.getDateAcct(), getTrxName());
+				if (cd != null)
+					Ref_CostDetail_ID = cd.getM_CostDetail_ID();
+			}
 			if (!MCostDetail.createOrder(as, m_oLine.getAD_Org_ID(), 
 					getM_Product_ID(), mMatchPO.getM_AttributeSetInstance_ID(),
 					m_oLine.getC_OrderLine_ID(), elementId,
 					amt, tQty,			//	Delivered
-					m_oLine.getDescription(), getTrxName()))
+					m_oLine.getDescription(), getDateAcct(), Ref_CostDetail_ID, getTrxName()))
 			{
 				return "SaveError";
 			}

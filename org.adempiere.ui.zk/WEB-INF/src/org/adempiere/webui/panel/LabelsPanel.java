@@ -67,7 +67,7 @@ public class LabelsPanel extends Div implements EventListener<Event> {
 	 * @param Record_ID
  	 * @deprecated Use {@link LabelsPanel#LabelsPanel(AbstractADWindowContent, int, int, String)} instead
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public LabelsPanel(AbstractADWindowContent abstractADWindowContent, int AD_Table_ID, int Record_ID) {
 		this(abstractADWindowContent, AD_Table_ID, Record_ID, null);
 		if (Record_ID > 0) {
@@ -131,6 +131,9 @@ public class LabelsPanel extends Div implements EventListener<Event> {
 		}
 	}
 	
+	/**
+	 * Re-render with latest data from AD_LabelAssignment
+	 */
 	private void update() {
 		// Clear children
 		List<Component> children = new ArrayList<Component>(getChildren());
@@ -158,6 +161,9 @@ public class LabelsPanel extends Div implements EventListener<Event> {
 		abstractADWindowContent.getToolbar().setPressed("Label",abstractADWindowContent.getActiveGridTab().hasLabel());
 	}
 	
+	/**
+	 * Pill shape label component
+	 */
 	private class LabelPill extends Groupbox {
 		private static final long serialVersionUID = -2248242199670448950L;
 		

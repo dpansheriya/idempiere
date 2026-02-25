@@ -82,6 +82,7 @@ import org.compiere.util.Trx;
 import org.compiere.util.Util;
 import org.eevolution.model.MDDOrder;
 import org.eevolution.model.X_PP_Order;
+import org.idempiere.db.util.SQLFragment;
 import org.idempiere.print.renderer.CSVReportRenderer;
 import org.idempiere.print.renderer.CSVReportRendererConfiguration;
 import org.idempiere.print.renderer.HTMLReportRenderer;
@@ -239,7 +240,7 @@ public class ReportEngine implements PrintServiceAttributeListener
 	/** Transaction Name 		*/
 	private String 			m_trxName = null;
 	/** Where filter */
-	private String 			m_whereExtended = null;
+	private SQLFragment 	m_extendedFilter = null;
 	/** Window */
 	private int m_windowNo = 0;
 	
@@ -862,7 +863,8 @@ queued-job-count = 0  (class javax.print.attribute.standard.QueuedJobCount)
 		try
 		{
 			if (file == null)
-				file = FileUtil.createTempFile (makePrefix(getName()), ".pdf");
+				file = (m_pi != null && !Util.isEmpty(m_pi.getPDFFileName(),true)) ? FileUtil.createFile(m_pi.getPDFFileName()) :
+					FileUtil.createTempFile (FileUtil.makePrefix(getName()), ".pdf");
 		}
 		catch (IOException e)
 		{
@@ -892,7 +894,7 @@ queued-job-count = 0  (class javax.print.attribute.standard.QueuedJobCount)
 		try
 		{
 			if (file == null)
-				file = FileUtil.createTempFile (makePrefix(getName()), ".html");
+				file = FileUtil.createTempFile (FileUtil.makePrefix(getName()), ".html");
 		}
 		catch (IOException e)
 		{
@@ -922,7 +924,7 @@ queued-job-count = 0  (class javax.print.attribute.standard.QueuedJobCount)
 		try
 		{
 			if (file == null)
-				file = FileUtil.createTempFile (makePrefix(getName()), ".csv");
+				file = FileUtil.createTempFile (FileUtil.makePrefix(getName()), ".csv");
 		}
 		catch (IOException e)
 		{
@@ -952,7 +954,7 @@ queued-job-count = 0  (class javax.print.attribute.standard.QueuedJobCount)
 		try
 		{
 			if (file == null)
-				file = FileUtil.createTempFile (makePrefix(getName()), ".xls");
+				file = FileUtil.createTempFile (FileUtil.makePrefix(getName()), ".xls");
 		}
 		catch (IOException e)
 		{
@@ -989,7 +991,7 @@ queued-job-count = 0  (class javax.print.attribute.standard.QueuedJobCount)
 		try
 		{
 			if (file == null)
-				file = FileUtil.createTempFile (makePrefix(getName()), ".xlsx");
+				file = FileUtil.createTempFile (FileUtil.makePrefix(getName()), ".xlsx");
 		}
 		catch (IOException e)
 		{
@@ -1049,7 +1051,7 @@ queued-job-count = 0  (class javax.print.attribute.standard.QueuedJobCount)
 				pi.setIsBatch(true);
 				pi.setPDFFileName(fileName);
 				pi.setTransientObject(m_printFormat);
-				ServerProcessCtl.process(pi, (m_trxName == null ? null : Trx.get(m_trxName, false)));
+				ServerProcessCtl.process(pi, (m_trxName == null ? null : Trx.get(m_trxName, false)), false);
 			} else {
 				PDFReportRendererConfiguration config = new PDFReportRendererConfiguration().setOutputFile(file);
 				new PDFReportRenderer().renderReport(this, config);
@@ -1066,24 +1068,6 @@ queued-job-count = 0  (class javax.print.attribute.standard.QueuedJobCount)
 		return file2.exists();
 	}	//	createPDF
 
-	/**
-	 * Create valid file name prefix from "name"
-	 * @param name
-	 * @return file name prefix
-	 */
-	private String makePrefix(String name) {
-		StringBuilder prefix = new StringBuilder();
-		char[] nameArray = name.toCharArray();
-		for (char ch : nameArray) {
-			if (Character.isLetterOrDigit(ch)) {
-				prefix.append(ch);
-			} else {
-				prefix.append("_");
-			}
-		}
-		return prefix.toString();
-	}
-	
 	/**
 	 * 	Create PDF as Data array
 	 *	@return pdf data
@@ -1691,10 +1675,10 @@ queued-job-count = 0  (class javax.print.attribute.standard.QueuedJobCount)
 		if (DocSubTypeSO == null)
 			DocSubTypeSO = "";
 		//	WalkIn Receipt, WalkIn Invoice,
-		if (DocSubTypeSO.equals("WR") || DocSubTypeSO.equals("WI"))
+		if (DocSubTypeSO.equals(MOrder.DocSubTypeSO_POS) || DocSubTypeSO.equals(MOrder.DocSubTypeSO_OnCredit))
 			what[0] = INVOICE;
 		//	WalkIn Pickup,
-		else if (DocSubTypeSO.equals("WP"))
+		else if (DocSubTypeSO.equals(MOrder.DocSubTypeSO_Warehouse))
 			what[0] = SHIPMENT;
 		//	Offer Binding, Offer Nonbinding, Standard Order
 		else
@@ -1702,10 +1686,10 @@ queued-job-count = 0  (class javax.print.attribute.standard.QueuedJobCount)
 
 		//	Get Record_ID of Invoice/Receipt
 		if (what[0] == INVOICE)
-			sql = new StringBuilder("SELECT C_Invoice_ID REC FROM C_Invoice WHERE C_Order_ID=?")	//	1
+			sql = new StringBuilder("SELECT C_Invoice_ID REC FROM C_Invoice WHERE C_Order_ID=? AND DocStatus IN ('CO','CL')")	//	1
 				.append(" ORDER BY C_Invoice_ID DESC");
 		else
-			sql = new StringBuilder("SELECT M_InOut_ID REC FROM M_InOut WHERE C_Order_ID=?") 	//	1
+			sql = new StringBuilder("SELECT M_InOut_ID REC FROM M_InOut WHERE C_Order_ID=? AND DocStatus IN ('CO','CL')") 	//	1
 				.append(" ORDER BY M_InOut_ID DESC");
 		try
 		{
@@ -1758,16 +1742,34 @@ queued-job-count = 0  (class javax.print.attribute.standard.QueuedJobCount)
 	 * Set extended where clause
 	 * @param whereExtended
 	 */
+	@Deprecated(forRemoval = true, since = "13")
 	public void setWhereExtended(String whereExtended) {
-		m_whereExtended = whereExtended;
+		m_extendedFilter = new SQLFragment(whereExtended);
 	}
 
 	/**
 	 * Get extended where clause
 	 * @return extended where clause
 	 */
+	@Deprecated(forRemoval = true, since = "13")
 	public String getWhereExtended() {
-		return m_whereExtended;
+		return m_extendedFilter != null ? m_extendedFilter.toSQLWithParameters() : null;
+	}
+	
+	/**
+	 * Set extended filter
+	 * @param filter
+	 */
+	public void setExtendedFilter(SQLFragment filter) {
+		m_extendedFilter = filter;
+	}
+	
+	/**
+	 * Get extended filter
+	 * @return extended filter
+	 */
+	public SQLFragment getExtendedFilter() {
+		return m_extendedFilter;
 	}
 
 	/**

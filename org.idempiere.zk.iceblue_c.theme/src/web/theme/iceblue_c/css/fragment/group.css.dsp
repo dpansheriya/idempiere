@@ -16,6 +16,17 @@ tr.z-group {
 	padding: 1px 2px;
 	background: #fff !important;
 }
+.mobile .z-group td.z-group-inner {
+    padding: 8px 2px;
+}
+.mobile .z-group td.z-group-inner .z-group-icon {
+    height: 24px;
+    line-height: 24px;
+    font-size: 20px;
+}
+.mobile .z-group td.z-group-inner .z-label {
+    line-height: 24px;
+}
 
 .z-group-icon {
 	display: inline-block;
@@ -27,9 +38,11 @@ tr.z-group {
 }
 .z-group-icon-close:before {
 	content: "\f0da";
+	font-weight: 900;
 }
 .z-group-icon-open:before {
 	content: "\f0d7";
+	font-weight: 900;
 }
 
 div.z-listbox-body .z-listgroup-header {

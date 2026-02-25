@@ -48,6 +48,7 @@ import org.compiere.util.DisplayType;
 import org.compiere.util.Env;
 import org.compiere.util.Msg;
 import org.compiere.util.Util;
+import org.idempiere.db.util.SQLFragment;
 import org.zkoss.zk.ui.event.Event;
 import org.zkoss.zk.ui.event.EventListener;
 import org.zkoss.zk.ui.event.Events;
@@ -71,7 +72,7 @@ import org.zkoss.zul.Vbox;
 * @version	InfoInOut.java Adempiere Swing UI 3.4.1
 */
 
-@Deprecated // replaced with InfoInOutWindow IDEMPIERE-325
+@Deprecated (since="13", forRemoval=true) // replaced with InfoInOutWindow IDEMPIERE-325
 public class InfoInOutPanel extends InfoPanel implements ValueChangeListener, EventListener<Event>
 {
 	/**
@@ -134,11 +135,27 @@ public class InfoInOutPanel extends InfoPanel implements ValueChangeListener, Ev
 	 *  @param value query value
 	 *  @param multiSelection multiple selections
 	 *  @param whereClause where clause
+	 *  @param lookup true if lookup
 	 */
 	public InfoInOutPanel(	int WindowNo, String value,
 								boolean multiSelection, String whereClause, boolean lookup)
 	{
-		super (WindowNo, "i", "M_InOut_ID", multiSelection, whereClause, lookup);
+		this(WindowNo, value, multiSelection, lookup, new SQLFragment(whereClause));
+	}
+	
+	/**
+	 *  Detail Protected Constructor
+	 *
+	 *  @param WindowNo window no
+	 *  @param value query value
+	 *  @param multiSelection multiple selections
+	 *  @param lookup true if lookup
+	 *  @param sqlFilter SQL filter
+	 */
+	public InfoInOutPanel(	int WindowNo, String value,
+								boolean multiSelection, boolean lookup, SQLFragment sqlFilter)
+	{
+		super (WindowNo, "i", "M_InOut_ID", multiSelection, lookup, sqlFilter);
 		log.info( "InfoInOut");
 		setTitle(Msg.getMsg(Env.getCtx(), "InfoInOut"));
 
@@ -180,11 +197,11 @@ public class InfoInOutPanel extends InfoPanel implements ValueChangeListener, Ev
 		fDescription.addEventListener(Events.ON_CHANGE, this);
 		fPOReference.addEventListener(Events.ON_CHANGE, this);
 		
-		fDocumentNo.setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "documentNo");
-		fDescription.setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "description");
-		fPOReference.setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "poreference");
-		fDateFrom.setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "dateFrom");
-		fDateTo.setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "dateTo");
+		fDocumentNo.setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "documentNo");
+		fDescription.setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "description");
+		fPOReference.setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "poreference");
+		fDateFrom.setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "dateFrom");
+		fDateTo.setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "dateTo");
 
 		fIsSOTrx.setLabel(Msg.translate(Env.getCtx(), "IsSOTrx"));
 		fIsSOTrx.setChecked(!"N".equals(Env.getContext(Env.getCtx(), p_WindowNo, "IsSOTrx")));
@@ -267,6 +284,7 @@ public class InfoInOutPanel extends InfoPanel implements ValueChangeListener, Ev
 	 *	@return true, if success
 	 */
 
+	@SuppressWarnings("removal")
 	private boolean initInfo ()
 	{
 		//  Set Defaults

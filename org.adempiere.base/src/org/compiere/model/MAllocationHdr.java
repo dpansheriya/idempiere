@@ -459,13 +459,15 @@ public class MAllocationHdr extends X_C_AllocationHdr implements DocAction
 
 			// IDEMPIERE-1850 - validate date against related docs
 			if (line.getC_Invoice_ID() > 0) {
-				if (line.getC_Invoice().getDateAcct().after(getDateAcct())) {
+				MInvoice invoice = line.getInvoice();
+				if (invoice != null && invoice.getDateAcct().after(getDateAcct())) {
 					m_processMsg = "Wrong allocation date";
 					return DocAction.STATUS_Invalid;
 				}
 			}
 			if (line.getC_Payment_ID() > 0) {
-				if (line.getC_Payment().getDateAcct().after(getDateAcct())) {
+				MPayment payment = new MPayment(getCtx(), line.getC_Payment_ID(), get_TrxName());
+				if (payment.getDateAcct().after(getDateAcct())) {
 					m_processMsg = "Wrong allocation date";
 					return DocAction.STATUS_Invalid;
 				}
@@ -1036,8 +1038,8 @@ public class MAllocationHdr extends X_C_AllocationHdr implements DocAction
 				MPayment payment = new MPayment(getCtx(), line.getC_Payment_ID(), get_TrxName());
 				if (DOCSTATUS_Reversed.equals(payment.getDocStatus()))
 				{
-					MPayment reversal = (MPayment) payment.getReversal();
-					if (reversal != null)
+					MPayment reversal = new MPayment(payment.getCtx(), payment.getReversal_ID(), payment.get_TrxName());
+					if (reversal.getC_Payment_ID() == payment.getReversal_ID())
 					{
 						line.setPaymentInfo(reversal.getC_Payment_ID(), 0);
 					}
@@ -1084,8 +1086,8 @@ public class MAllocationHdr extends X_C_AllocationHdr implements DocAction
 		String sysconfig_desc = MSysConfig.getValue(MSysConfig.ALLOCATION_DESCRIPTION, "@#AD_User_Name@", getAD_Client_ID());
 		String description = "";
 		if (sysconfig_desc.contains("@")) {
-			description = Env.parseVariable(sysconfig_desc, new MBPartner(getCtx(), bpartnerID, null), trxName, true);
-			description = Env.parseVariable(description, this, trxName, true);
+			description = Env.parseVariable(sysconfig_desc, new MBPartner(getCtx(), bpartnerID, null), trxName, false, false, true, true); // keep escape sequence
+			description = Env.parseVariable(description, this, trxName, false, false, true, false);
 			description = Msg.parseTranslation(getCtx(), description);
 		} else
 			description = Env.getContext(getCtx(), Env.AD_USER_NAME); // just to be sure

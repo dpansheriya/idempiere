@@ -54,6 +54,7 @@ import org.adempiere.webui.event.ValueChangeEvent;
 import org.adempiere.webui.event.ValueChangeListener;
 import org.adempiere.webui.factory.ButtonFactory;
 import org.adempiere.webui.session.SessionManager;
+import org.adempiere.webui.util.Icon;
 import org.adempiere.webui.util.ZKUpdateUtil;
 import org.adempiere.webui.window.DateRangeButton;
 import org.adempiere.webui.window.Dialog;
@@ -61,7 +62,7 @@ import org.compiere.apps.IProcessParameter;
 import org.compiere.model.GridField;
 import org.compiere.model.GridFieldVO;
 import org.compiere.model.MClient;
-import org.compiere.model.MLookup;
+import org.compiere.model.MColumn;
 import org.compiere.model.MPInstance;
 import org.compiere.model.MPInstancePara;
 import org.compiere.model.MProcess;
@@ -71,6 +72,7 @@ import org.compiere.process.ProcessInfo;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
+import org.compiere.util.DefaultEvaluatee;
 import org.compiere.util.DisplayType;
 import org.compiere.util.Env;
 import org.compiere.util.Evaluatee;
@@ -91,9 +93,11 @@ import org.zkoss.zul.Space;
 import org.zkoss.zul.impl.InputElement;
 import org.zkoss.zul.impl.XulElement;
 
+import static org.adempiere.webui.LayoutUtils.isLabelAboveInputForSmallWidth;
+
 /**
- * Process Parameter Panel.
- * Embedded in {@link ProcessDialog} and {@link ProcessModalDialog}.
+ * Process Parameter Panel.<br/>
+ * Embedded in {@link ProcessDialog} and {@link ProcessModalDialog}.<br/>
  * Capture parameters input, validate and save to DB.
  * 
  * @author Low Heng Sin
@@ -140,7 +144,7 @@ public class ProcessParameterPanel extends Panel implements
 	} // ProcessParameterPanel
 	
 	/**
-	 * Layout UI
+	 * Layout panel
 	 */
 	private void initComponent() {
 		centerPanel = GridFactory.newGridLayout();
@@ -150,10 +154,14 @@ public class ProcessParameterPanel extends Panel implements
 		Columns columns = new Columns();
 		centerPanel.appendChild(columns);
 		Column col = new Column();
-		ZKUpdateUtil.setWidth(col, "30%");
-		columns.appendChild(col);
-		col = new Column();
-		ZKUpdateUtil.setWidth(col, "70%");
+		if (!isLabelAboveInputForSmallWidth()) {
+			ZKUpdateUtil.setWidth(col, "30%");
+			columns.appendChild(col);
+			col = new Column();
+			ZKUpdateUtil.setWidth(col, "70%");
+		} else {
+			ZKUpdateUtil.setWidth(col, "100%");
+		}
 		columns.appendChild(col);
 	}
 
@@ -213,6 +221,16 @@ public class ProcessParameterPanel extends Panel implements
 	 * @return true if loaded OK
 	 */
 	public boolean init() {
+		return init(null);
+	}
+
+	/**
+	 * Render all visible fields
+	 * @param showHelp
+	 * @return true if loaded OK
+	 */
+	public boolean init(String showHelp) {
+		
 		if (log.isLoggable(Level.CONFIG)) log.config("");
 
 		// ASP
@@ -400,9 +418,18 @@ public class ProcessParameterPanel extends Panel implements
 			log.log(Level.SEVERE, "View & Model vector size is different");
 
 		// clean up
-		if (hasFields) {
+		if (hasFields || MProcess.SHOWHELP_ShowHelp.equals(showHelp)) {
 			centerPanel.appendChild(rows);
 			dynamicDisplay();
+
+			if (m_processInfo.getAD_Process_ID() > 0) {
+				String className = MProcess.get(Env.getCtx(), m_processInfo.getAD_Process_ID()).getClassname();
+
+				List<IProcessParameterListener> listeners = Extensions.getProcessParameterListeners(className, null);
+				for(IProcessParameterListener listener : listeners)
+					listener.onInit(this);
+			}
+
 		} else
 			dispose();
 		return hasFields;
@@ -461,15 +488,18 @@ public class ProcessParameterPanel extends Panel implements
 		m_wEditors.add(editor); // add to Editors
 
     	Div div = new Div();
-        div.setStyle("text-align: right;");
+		if (!isLabelAboveInputForSmallWidth())
+        	div.setStyle("text-align: right;");
         org.adempiere.webui.component.Label label = editor.getLabel();
         div.appendChild(label);
         if (label.getDecorator() != null)
         	div.appendChild(label.getDecorator());
-        row.appendChild(div);
+		if (!isLabelAboveInputForSmallWidth())
+        	row.appendChild(div);
 		//
         Div box = new Div();
-		box.setStyle("display: flex; align-items: center;");
+		if (!isLabelAboveInputForSmallWidth())
+			box.setStyle("display: flex; align-items: center;");
 		ZKUpdateUtil.setWidth(box, "100%");
 		//create to field and editor
 		if (voF.isRange) {
@@ -539,7 +569,7 @@ public class ProcessParameterPanel extends Panel implements
 			if(DisplayType.isChosenMultipleSelection(mField.getDisplayType()) && voF.IsShowNegateButton) {
 				Button bNegate = ButtonFactory.createButton("", null, null);
 				bNegate.setTooltiptext(Msg.translate(Env.getCtx(), "IncludeSelectedValues"));
-				bNegate.setIconSclass("z-icon-IncludeSelected");
+				bNegate.setIconSclass(Icon.getIconSclass(Icon.INCLUDE_SELECTED));
 				bNegate.setSclass("btn-negate btn-negate-include");
 				bNegate.setAttribute("isSelected", false);
 				bNegate.setVisible(false);
@@ -548,11 +578,20 @@ public class ProcessParameterPanel extends Panel implements
 				editor.getComponent().setAttribute("isNotClause", bNegate);
 			}
 		}
-		row.appendChild(box);
+		if (!isLabelAboveInputForSmallWidth()) {
+			row.appendChild(box);
+		} else {
+			Div container = new Div();
+			container.appendChild(div);
+			container.appendChild(box);
+			row.appendCellChild(container);
+			LayoutUtils.addSclass("form-label-above-input", row.getLastCell());
+			LayoutUtils.addSclass("form-label", div);
+		}
 	} // createField
 
 	/**
-	 * set place holder message
+	 * Set place holder message
 	 * @param editor
 	 * @param msg
 	 */
@@ -706,7 +745,7 @@ public class ProcessParameterPanel extends Panel implements
 	}
 
 	/** 
-	 * load parameters from saved instance
+	 * Load parameters from saved instance
 	 * @param instance
 	 */
 	public boolean loadParameters(MPInstance instance)
@@ -775,13 +814,13 @@ public class ProcessParameterPanel extends Panel implements
 					if(bNegate != null) {
 						if(para.isNotClause()) {
 							bNegate.setTooltiptext(Msg.translate(Env.getCtx(), "ExcludeSelectedValues"));
-							bNegate.setIconSclass("z-icon-ExcludeSelected");
+							bNegate.setIconSclass(Icon.getIconSclass(Icon.EXCLUDE_SELECTED));
 							bNegate.setSclass("btn-negate btn-negate-exclude");
 							bNegate.setAttribute("isSelected", true);
 						} 
 						else {
 							bNegate.setTooltiptext(Msg.translate(Env.getCtx(), "IncludeSelectedValues"));
-							bNegate.setIconSclass("z-icon-IncludeSelected");
+							bNegate.setIconSclass(Icon.getIconSclass(Icon.INCLUDE_SELECTED));
 							bNegate.setSclass("btn-negate btn-negate-include");
 							bNegate.setAttribute("isSelected", false);
 						}
@@ -1045,6 +1084,7 @@ public class ProcessParameterPanel extends Panel implements
 	 * 
 	 * @param evt ValueChangeEvent
 	 */
+	@Override
 	public void valueChange(ValueChangeEvent evt) {
 		String propName = evt.getPropertyName();
 		if (evt.getSource() instanceof WEditor) {
@@ -1100,7 +1140,7 @@ public class ProcessParameterPanel extends Panel implements
 						bNegate.setVisible(false);
 						bNegate.setAttribute("isSelected", false);
 						bNegate.setTooltiptext(Msg.translate(Env.getCtx(), "IncludeSelectedValues"));
-	    				bNegate.setIconSclass("z-icon-IncludeSelected");
+	    				bNegate.setIconSclass(Icon.getIconSclass(Icon.INCLUDE_SELECTED));
 	    				bNegate.setSclass("btn-negate btn-negate-include");
 					}
 				}
@@ -1113,12 +1153,12 @@ public class ProcessParameterPanel extends Panel implements
     			boolean isSelected = !(boolean)bNegate.getAttribute("isSelected");
     			if(isSelected) {
     				bNegate.setTooltiptext(Msg.translate(Env.getCtx(), "ExcludeSelectedValues"));
-    				bNegate.setIconSclass("z-icon-ExcludeSelected");
+    				bNegate.setIconSclass(Icon.getIconSclass(Icon.EXCLUDE_SELECTED));
     				bNegate.setSclass("btn-negate btn-negate-exclude");
     			} 
     			else {
     				bNegate.setTooltiptext(Msg.translate(Env.getCtx(), "IncludeSelectedValues"));
-    				bNegate.setIconSclass("z-icon-IncludeSelected");
+    				bNegate.setIconSclass(Icon.getIconSclass(Icon.INCLUDE_SELECTED));
     				bNegate.setSclass("btn-negate btn-negate-include");
     			}
     			bNegate.setAttribute("isSelected", isSelected);
@@ -1175,18 +1215,7 @@ public class ProcessParameterPanel extends Panel implements
 	private void verifyChangedField(GridField field, String columnName) {
 		ArrayList<String> list = field.getDependentOn();
 		if (list.contains(columnName)) {
-			if (field.getLookup() instanceof MLookup)
-			{
-				MLookup mLookup = (MLookup)field.getLookup();
-				//  if the lookup is dynamic (i.e. contains this columnName as variable)
-				if (mLookup.getValidation().indexOf("@"+columnName+"@") != -1)
-				{
-					if (log.isLoggable(Level.FINE)) log.fine(columnName + " changed - "
-						+ field.getColumnName() + " set to null");
-					//  invalidate current selection
-					field.setValue(null, true);
-				}
-			}
+			GridField.updateDependentField(field, columnName, -1, null);
 		}
 	}
 	
@@ -1327,13 +1356,16 @@ public class ProcessParameterPanel extends Panel implements
 		m_processInfo = processInfo;
 	}
 	
-	
+	/**
+	 * Get process info 
+	 * @return process info
+	 */
 	public ProcessInfo getProcessInfo() {
 		return m_processInfo;
 	}
 	
 	/**
-	 * focus to first visible field editor.
+	 * Focus to first visible field editor.
 	 * @return true if there is at least one visible field editor.
 	 */
 	public boolean focusToFirstEditor() {
@@ -1392,7 +1424,8 @@ public class ProcessParameterPanel extends Panel implements
 	}
 	
 	/**
-	 * @return true if editor is showing dialog awaiting user action (usually info window).
+	 * Is WSearchEditor showing dialog that is awaiting user action
+	 * @return true if WSearchEditor is showing dialog that is awaiting user action (usually info window).
 	 */
 	public boolean isWaitingForDialog() {
 		for (int i = 0; i < m_mFields.size(); i++) {
@@ -1440,44 +1473,71 @@ public class ProcessParameterPanel extends Panel implements
 
 	@Override
 	public String get_ValueAsString(String variableName) {
-		for(WEditor editor : m_wEditors) {
-			if (editor.getGridField().getColumnName().equals(variableName)) {
-				//base on code in GridField.updateContext() method
-				int displayType = editor.getGridField().getVO().displayType;	
-				if (displayType == DisplayType.Text 
-					|| displayType == DisplayType.Memo
-					|| displayType == DisplayType.TextLong
-					|| displayType == DisplayType.JSON
-					|| displayType == DisplayType.Binary
-					|| displayType == DisplayType.RowID
-					|| editor.getGridField().isEncrypted())
-					return ""; //	ignore
-				
-				Object value = editor.getValue();
-				if (value == null)
-					return "";
-				else if (value instanceof Boolean)
-				{
-					return (((Boolean)value) ? "Y" : "N");
-				}
-				else if (value instanceof Timestamp)
-				{
-					String stringValue = null;
-					if (value != null && !value.toString().equals("")) {
-						Calendar c1 = Calendar.getInstance();
-						c1.setTime((Date) value);
-						SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-						stringValue = sdf.format(c1.getTime());
-					}
-					return stringValue;
-				}
-				else
-				{
-					return value.toString();
-				}
-			}
-		}
-		return null;
+		DefaultEvaluatee evaluatee = new DefaultEvaluatee(new FieldEditorDataProvider(), m_WindowNo, m_TabNo);
+		return evaluatee.get_ValueAsString(variableName);				
 	}
 
+	/**
+	 * Data provider implementation backed by parameter field editors
+	 */
+	private class FieldEditorDataProvider implements DefaultEvaluatee.DataProvider {
+
+		@Override
+		public Object getValue(String columnName) {
+			for(WEditor editor : m_wEditors) {
+				if (editor.getGridField().getColumnName().equals(columnName)) {
+					//base on code in GridField.updateContext() method
+					int displayType = editor.getGridField().getVO().displayType;	
+					if (displayType == DisplayType.Text 
+						|| displayType == DisplayType.Memo
+						|| displayType == DisplayType.TextLong
+						|| displayType == DisplayType.JSON
+						|| displayType == DisplayType.Binary
+						|| displayType == DisplayType.RowID
+						|| editor.getGridField().isEncrypted())
+						return ""; //	ignore
+					
+					Object value = editor.getValue();
+					if (value == null)
+						return "";
+					else if (value instanceof Boolean)
+					{
+						return (((Boolean)value) ? "Y" : "N");
+					}
+					else if (value instanceof Timestamp)
+					{
+						String stringValue = null;
+						if (value != null && !value.toString().equals("")) {
+							Calendar c1 = Calendar.getInstance();
+							c1.setTime((Date) value);
+							SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+							stringValue = sdf.format(c1.getTime());
+						}
+						return stringValue;
+					}
+					else
+					{
+						return value.toString();
+					}
+				}
+			}
+			return null;
+		}
+
+		@Override
+		public Object getProperty(String propertyName) {
+			return null;
+		}
+
+		@Override
+		public MColumn getColumn(String columnName) {
+			return null;
+		}
+
+		@Override
+		public String getTrxName() {
+			return null;
+		}
+		
+	}
 } // ProcessParameterPanel

@@ -220,7 +220,7 @@ public final class Ini implements Serializable
 	 *	Save INI parameters to disk
 	 *  @param tryUserHome true to try user home first
 	 */
-	@SuppressWarnings("deprecation")
+	@SuppressWarnings({ "removal" })
 	public static void saveProperties (boolean tryUserHome)
 	{
 		if (Ini.isClient() && DB.isConnected()) {
@@ -237,17 +237,30 @@ public final class Ini implements Serializable
 			fos = new FileOutputStream(f);
 			s_prop.store(fos, "Adempiere");
 			fos.flush();
-			fos.close();
 		}
 		catch (Exception e)
 		{
-			log.log(Level.SEVERE, "Cannot save Properties to " + fileName + " - " + e.toString());
+			log.log(Level.SEVERE, "Cannot save Properties to " + fileName + " - " + e.toString(), e);
 			return;
 		}
 		catch (Throwable t)
 		{
-			log.log(Level.SEVERE, "Cannot save Properties to " + fileName + " - " + t.toString());
+			log.log(Level.SEVERE, "Cannot save Properties to " + fileName + " - " + t.toString(), t);
 			return;
+		}
+		finally
+		{
+			if (fos != null)
+			{
+				try
+				{
+					fos.close();
+				}
+				catch (Exception e) 
+				{
+					log.log(Level.SEVERE, "Cannot close Properties to " + fileName + " - " + e.toString(), e);
+				}
+			}
 		}
 		if (log.isLoggable(Level.FINER)) log.finer(fileName);
 	}	//	save
@@ -432,6 +445,8 @@ public final class Ini implements Serializable
 			s_prop = new Properties();
 		if (key.equals(P_WARNING) || key.equals(P_WARNING_de))
 			s_prop.setProperty(key, value);
+		else if (key.endsWith(".TraceLevel"))
+			s_prop.setProperty(key, value);
 		else if (!isClient())
 			s_prop.setProperty(key, SecureInterface.CLEARVALUE_START + value + SecureInterface.CLEARVALUE_END);
 		else
@@ -503,7 +518,7 @@ public final class Ini implements Serializable
 	 *	@return true if windows are cached
 	 *  @deprecated window is always cache for better performance
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static boolean isCacheWindow()
 	{
 		return getProperty (P_CACHE_WINDOW).equals("Y");
@@ -647,7 +662,7 @@ public final class Ini implements Serializable
 	 *	@param AD_Window_ID window no
 	 *	@return dimension or null
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static Dimension getWindowDimension(int AD_Window_ID)
 	{
 		String key = "WindowDim" + AD_Window_ID;
@@ -674,7 +689,7 @@ public final class Ini implements Serializable
 	 *	@param AD_Window_ID window
 	 *	@param windowDimension dimension - null to remove
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static void setWindowDimension(int AD_Window_ID, Dimension windowDimension)
 	{
 		String key = "WindowDim" + AD_Window_ID;
@@ -692,7 +707,7 @@ public final class Ini implements Serializable
 	 *	@param AD_Window_ID window id
 	 *	@return location or null
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static Point getWindowLocation(int AD_Window_ID)
 	{
 		String key = "WindowLoc" + AD_Window_ID;
@@ -719,7 +734,7 @@ public final class Ini implements Serializable
 	 *	@param AD_Window_ID window
 	 *	@param windowLocation location - null to remove
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static void setWindowLocation(int AD_Window_ID, Point windowLocation)
 	{
 		String key = "WindowLoc" + AD_Window_ID;
@@ -736,7 +751,7 @@ public final class Ini implements Serializable
 	 * 	Get Divider Location
 	 *	@return location
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static int getDividerLocation()
 	{
 		String key = "Divider";
@@ -757,7 +772,7 @@ public final class Ini implements Serializable
 	 * 	Set Divider Location
 	 *	@param dividerLocation location
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public static void setDividerLocation(int dividerLocation)
 	{
 		String key = "Divider";

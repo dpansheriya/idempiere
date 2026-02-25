@@ -50,6 +50,9 @@ import org.zkoss.zul.Separator;
 import org.zkoss.zul.Space;
 import org.zkoss.zul.Vbox;
 
+/**
+ * Popup menu item for workflow node
+ */
 public class WFPopupItem extends Menuitem {
 	/**
 	 * generated serial id
@@ -89,7 +92,8 @@ public class WFPopupItem extends Menuitem {
 	{
 		super (title);
 		m_line = line;
-		m_AD_Workflow_ID = line.getAD_WF_Node().getAD_Workflow_ID();
+		MWFNode node = MWFNode.get(Env.getCtx(), line.getAD_WF_Node_ID());
+		m_AD_Workflow_ID = node.getAD_Workflow_ID();
 	}	//	WFPopupItem
 
 	/** Source Workfklow Node */

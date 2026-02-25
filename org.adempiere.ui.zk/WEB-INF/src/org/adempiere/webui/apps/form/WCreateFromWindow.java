@@ -234,7 +234,7 @@ public class WCreateFromWindow extends Window implements EventListener<Event>, W
 	}
 	
 	/**
-	 * Save changes.
+	 * Save changes.<br/>
 	 * Delegate to {@link CreateFrom#save(org.compiere.minigrid.IMiniTable, String)}.
 	 * @param trxName
 	 * @return true if save successfully
@@ -269,7 +269,7 @@ public class WCreateFromWindow extends Window implements EventListener<Event>, W
 	}
 	
 	/**
-	 * Update {@link #statusBar}.
+	 * Update {@link #statusBar}.<br/>
 	 * Call {@link StatusBar#setStatusLine(String)}.
 	 * @param selectedRowCount
 	 * @param text
@@ -293,15 +293,6 @@ public class WCreateFromWindow extends Window implements EventListener<Event>, W
 		return statusBar;
 	}
 
-	/**
-	 * @param statusBar
-	 */
-	@Deprecated(forRemoval = true, since = "11")
-	public void setStatusBar(StatusBarPanel statusBar)
-	{
-		this.statusBar = statusBar;
-	}
-	
 	/**
 	 * @return {@link WListbox}
 	 */

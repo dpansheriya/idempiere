@@ -18,13 +18,20 @@ package org.compiere.model;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileOutputStream;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.HexFormat;
 import java.util.Random;
 import java.util.logging.Level;
 
+import org.adempiere.exceptions.AdempiereException;
 import org.compiere.util.CLogger;
 import org.compiere.util.MimeType;
 
@@ -36,7 +43,9 @@ import org.compiere.util.MimeType;
  */
 public class MAttachmentEntry
 {
-	/**
+    private File m_file;
+
+    /**
 	 * 	Attachment Entry
 	 * 	@param name name
 	 * 	@param data binary data
@@ -59,7 +68,17 @@ public class MAttachmentEntry
 	{
 		this (name, data, 0);
 	}	//	MAttachmentEntry
-	
+
+    public MAttachmentEntry(String name, File file) {
+        this(name, file, 0);
+    }
+
+    public MAttachmentEntry(String name, File file, int index) {
+        setName(name);
+        setIndex(index);
+        setFile(file);
+    }
+
 	/**
 	 * Constructor for delayed loading of content
 	 * @param name
@@ -82,8 +101,10 @@ public class MAttachmentEntry
 		this.m_isDataSet = copy.m_isDataSet;
 		this.m_ds = copy.m_ds;
 		this.m_data = copy.m_data != null ? Arrays.copyOf(copy.m_data, copy.m_data.length) : null;
+        this.m_sha256sum = copy.m_sha256sum;
 		this.m_index = copy.m_index;
 		this.m_name = copy.m_name;
+        this.m_file = copy.m_file;
 	}
 	
 	/**	The Name				*/
@@ -91,9 +112,12 @@ public class MAttachmentEntry
 
 	/** If m_data has been set */
 	private boolean m_isDataSet = false;
-	/** The Data, do not use m_data directly, it can be not loaded yet, always use the method getData to access this variable */
+	/** The Data, do not use m_data directly, it can be not loaded yet, always use the method getData to access this variable,
+	 *  also, do not assign it directly, use the method setData that calculates the sha256 checksum */
 	private byte[] 	m_data = null;
-	
+	/* sha256 checksum of the data */
+	private String m_sha256sum = null;
+
 	/** Random Seed			*/
 	private static long		s_seed = System.currentTimeMillis(); 
 	/** Random Number		*/
@@ -110,14 +134,24 @@ public class MAttachmentEntry
 	/** True if the entry has been updated (sets by MAttachment.updateEntry(int, byte[]) */
 	private boolean m_isUpdated = false;
 
-	/**
+
+    /**
 	 * @return byte[] content
 	 */
 	public byte[] getData ()
 	{
-		if (! m_isDataSet && m_ds != null) {
-			setData(m_ds.getData());
-		}
+		if (! m_isDataSet) {
+            if (m_ds != null)
+			    setData(m_ds.getData());
+		} else {
+            if (m_data == null && m_file != null) {
+                try {
+                    setData(Files.readAllBytes(m_file.toPath()));
+                } catch (IOException e) {
+                    log.log(Level.WARNING, e.getMessage(), e);
+                }
+            }
+        }
 		return m_data;
 	}
 	
@@ -127,9 +161,58 @@ public class MAttachmentEntry
 	public void setData (byte[] data)
 	{
 		m_data = data;
+        m_file = null;
 		m_isDataSet = true;
+		setSHA256Sum(m_data != null ? calculateSHA256Sum(m_data) : null);
 	}
-	
+
+	/**
+	 * Get the SHA256 checksum of the data
+	 * @return sha256sum
+	 */
+	public String getSHA256Sum() {
+		return m_sha256sum;
+	}
+
+	/**
+	 * Set the SHA256 checksum of the data
+	 * @param m_sha256sum
+	 */
+	public void setSHA256Sum(String m_sha256sum) {
+		this.m_sha256sum = m_sha256sum;
+	}
+
+    /**
+     * Set the file content
+     * @param file
+     */
+    public void setFile(File file) {
+        m_file = file;
+        m_data = null;
+        try {
+        	setData(Files.readAllBytes(m_file.toPath()));
+        } catch (IOException e) {
+        	log.log(Level.WARNING, e.getMessage(), e);
+        }
+        m_isDataSet = true;
+    }
+
+    /**
+     * Get size of data content in bytes
+     * @return size
+     */
+    public long getSize()
+    {
+        if (m_ds != null)
+            return m_ds.getSize();
+        else if (m_file != null)
+            return m_file.length();
+        else if (m_data != null && m_data.length > 0)
+            return m_data.length;
+        else
+            return 0;
+    }
+
 	/**
 	 * @return name of entry
 	 */
@@ -247,7 +330,10 @@ public class MAttachmentEntry
 	 */
 	public File getFile ()
 	{
-		return getFile (getName());
+        if (m_file != null)
+            return m_file;
+		m_file = getFile (getName());
+        return m_file;
 	}	//	getFile
 
 	/**
@@ -259,8 +345,20 @@ public class MAttachmentEntry
 	{
 		if (fileName == null || fileName.length() == 0)
 			fileName = getName();
-		return getFile (new File(System.getProperty("java.io.tmpdir") + File.separator + fileName));
-	}	//	getFile
+
+        //return file from lazy data source (if name match)
+        if (m_ds != null) {
+            File file = m_ds.getFile();
+            if (file != null && file.exists() && file.getName().equals(fileName))
+                return file;
+        }
+
+        try {
+            return getFile (new File(Files.createTempDirectory("attachment_").toFile() , fileName));
+        } catch (IOException e) {
+            throw new AdempiereException(e);
+        }
+    }	//	getFile
 
 	/**
 	 * 	Get File
@@ -269,19 +367,25 @@ public class MAttachmentEntry
 	 */
 	public File getFile (File file)
 	{
-		if (getData() == null || getData().length == 0)
+		InputStream inputStream = getInputStream();
+        if (inputStream == null)
 			return null;
 		try
 		{
-			FileOutputStream fos = new FileOutputStream(file);
-			fos.write(getData());
-			fos.close();
+            Files.copy(inputStream, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
 		}
 		catch (IOException ioe)
 		{
 			log.log(Level.SEVERE, "getFile", ioe);
-			throw new RuntimeException(ioe);
+			throw new AdempiereException(ioe);
 		}
+        finally
+        {
+            try {
+                inputStream.close();
+            } catch (IOException e) {
+            }
+        }
 		return file;
 	}	//	getFile
 
@@ -320,9 +424,19 @@ public class MAttachmentEntry
 	 */
 	public InputStream getInputStream()
 	{
-		if (getData() == null)
-			return null;
-		return new ByteArrayInputStream(getData());
+        if (m_ds != null)
+            return m_ds.getInputStream();
+        else if (m_file != null) {
+            try {
+                return new FileInputStream(m_file);
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        else if (m_data != null && m_data.length > 0)
+            return new ByteArrayInputStream(m_data);
+        else
+            return null;
 	}	//	getInputStream
 
 	/**
@@ -335,12 +449,13 @@ public class MAttachmentEntry
 		else
 		{
 			long now = System.currentTimeMillis();
+			synchronized(this) {
 			if (s_seed+3600000l < now)	//	older then 1 hour
 			{
 				s_seed = now;
 				s_random = new Random(s_seed);
 			}
-			m_index = s_random.nextInt();
+			m_index = s_random.nextInt();}
 		}
 	}
 
@@ -376,4 +491,33 @@ public class MAttachmentEntry
 		return m_isUpdated;
 	}
 
-}	//	MAttachmentItem
+    /**
+     * Clean up resources held. Should stop using the instance after calling this method.
+     */
+    public void cleanUp() {
+        if (m_data != null)
+            m_data = null;
+        if (m_ds != null) {
+            m_ds.cleanUp();
+        }
+    }
+
+	/**
+	 * Calculate SHA256 checksum
+	 * @param data
+	 * @param algorithm
+	 * @return
+	 */
+	private String calculateSHA256Sum(byte[] data) {
+		if (data == null)
+			return null;
+		MessageDigest digest;
+		try {
+			digest = MessageDigest.getInstance("SHA-256");
+		} catch (NoSuchAlgorithmException e) {
+			throw new AdempiereException("Error calculating checksum", e);
+		}
+		return HexFormat.of().formatHex(digest.digest(data));
+	}
+
+}	//	MAttachmentEntry

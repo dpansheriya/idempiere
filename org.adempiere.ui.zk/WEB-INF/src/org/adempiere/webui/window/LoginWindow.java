@@ -28,6 +28,7 @@ import java.util.Locale;
 import java.util.Properties;
 import java.util.logging.Level;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
 import org.adempiere.base.sso.ISSOPrincipalService;
@@ -44,6 +45,7 @@ import org.adempiere.webui.panel.RolePanel;
 import org.adempiere.webui.panel.ValidateMFAPanel;
 import org.adempiere.webui.session.SessionContextListener;
 import org.adempiere.webui.session.SessionManager;
+import org.adempiere.webui.session.fingerprint.SessionFingerprintManager;
 import org.adempiere.webui.theme.ThemeManager;
 import org.adempiere.webui.util.UserPreference;
 import org.adempiere.webui.util.ZkSSOUtils;
@@ -70,10 +72,9 @@ import org.zkoss.zk.ui.metainfo.PageDefinition;
 import org.zkoss.zk.ui.util.Clients;
 
 /**
- *
+ * Login window
  * @author  <a href="mailto:agramdass@gmail.com">Ashley G Ramdass</a>
  * @date    Feb 25, 2007
- * @version $Revision: 0.10 $
  * @author <a href="mailto:sendy.yagambrum@posterita.org">Sendy Yagambrum</a>
  * @date    July 18, 2007
  */
@@ -141,7 +142,11 @@ public class LoginWindow extends Window implements EventListener<Event>
 		String errorMessage = null;
 		try
 		{
-			ISSOPrincipalService ssoPrincipal = SSOUtils.getSSOPrincipalService();
+			String provider = (String) getDesktop().getSession().getAttribute(ISSOPrincipalService.SSO_SELECTED_PROVIDER);
+			ISSOPrincipalService ssoPrincipal = SSOUtils.getSSOPrincipalService(provider);
+			if (ssoPrincipal == null)
+				throw new AdempiereException(Msg.getMsg(Env.getCtx(), "SSOServiceNotFound"));
+			
 			String username = ssoPrincipal.getUserName(token);
 			Language language = ssoPrincipal.getLanguage(token);
 			boolean isEmailLogin = MSysConfig.getBooleanValue(MSysConfig.USE_EMAIL_FOR_LOGIN, false);
@@ -204,6 +209,13 @@ public class LoginWindow extends Window implements EventListener<Event>
 		loginOk(userName, show, clientsKNPairs, false);
 	}
 
+	/**
+	 * After verification of user name and password.
+	 * @param userName
+	 * @param show
+	 * @param clientsKNPairs
+	 * @param isSSOLogin
+	 */
     public void loginOk(String userName, boolean show, KeyNamePair[] clientsKNPairs, boolean isSSOLogin)
 	{
 		boolean isClientDefined = (clientsKNPairs.length == 1 || !Util.isEmpty(Env.getContext(ctx, Env.AD_USER_ID)));
@@ -219,6 +231,13 @@ public class LoginWindow extends Window implements EventListener<Event>
 		}
 	}
 
+    /**
+     * Move to role selection step or multi factor authentication step.
+     * @param userName
+     * @param show
+     * @param clientsKNPairs
+     * @param isClientDefined
+     */
 	private void validateMFPanel(String userName, boolean show, KeyNamePair[] clientsKNPairs, boolean isClientDefined)
 	{
 		if (isClientDefined) {
@@ -374,6 +393,11 @@ public class LoginWindow extends Window implements EventListener<Event>
 		}
 
         app.loginCompleted();
+
+		// Create session fingerprint for protection against session fixation attacks
+		HttpServletRequest servletRequest = (HttpServletRequest) Executions.getCurrent().getNativeRequest();
+		int sessionId = Env.getContextAsInt(Env.getCtx(), Env.AD_SESSION_ID);
+		SessionFingerprintManager.create(servletRequest, httpSess, sessionId);
     }
 
 	/**

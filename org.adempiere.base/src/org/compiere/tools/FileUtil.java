@@ -193,14 +193,12 @@ public class FileUtil
 	 * 	@throws IOException
 	 */
 	private void replaceString (File file, String from, String to) throws IOException
-	{
+	{		
 		String fileName = file.getAbsolutePath();
-		BufferedReader in = new BufferedReader(new FileReader(file));
-		//
 		File tmpFile = new File(fileName + ".tmp");
-		BufferedWriter out = new BufferedWriter (new FileWriter(tmpFile, false));
 		boolean found = false;
-
+		try (BufferedReader in = new BufferedReader(new FileReader(file));
+		BufferedWriter out = new BufferedWriter (new FileWriter(tmpFile, false));) {
 		String line = null;
 		int lineNo = 0;
 		while ((line = in.readLine()) != null)
@@ -215,10 +213,7 @@ public class FileUtil
 			}
 			out.write(line);
 			out.newLine();
-		}	//	while reading file
-		//
-		in.close();
-		out.close();
+		}}	//	while reading file
 		//
 		if (found)
 		{
@@ -257,14 +252,12 @@ public class FileUtil
 	private void latex (File file) throws IOException
 	{
 		String fileName = file.getAbsolutePath();
-		BufferedReader in = new BufferedReader(new FileReader(file));
-		//
 		File outFile = new File(fileName + ".txt");
-		BufferedWriter out = new BufferedWriter (new FileWriter(outFile, false));
+		int lineNo = 0;
+		try (BufferedReader in = new BufferedReader(new FileReader(file));
+		BufferedWriter out = new BufferedWriter (new FileWriter(outFile, false));) {
 
 		String line = null;
-		int lineNo = 0;
-
 		while ((line = in.readLine()) != null)
 		{
 			lineNo++;
@@ -287,15 +280,11 @@ public class FileUtil
 			//
 			out.write(sb.toString());
 			out.newLine();
-		}	//	while reading file
-		//
-		in.close();
-		out.close();
+		}}	//	while reading file
 		System.out.println("File " + fileName + " - lines=" + lineNo);
 	}	//	latex
-
 	
-	/**************************************************************************
+	/**
 	 * 	Replace License info.
 	 * 	@param file file
 	 * 	@throws IOException
@@ -303,14 +292,13 @@ public class FileUtil
 	private void license (File file) throws IOException
 	{
 		String fileName = file.getAbsolutePath();
-		boolean isJava = fileName.endsWith(".java");
-		BufferedReader in = new BufferedReader(new FileReader(file));
-		//
 		File tmpFile = new File(fileName + ".tmp");
-		BufferedWriter out = new BufferedWriter (new FileWriter(tmpFile, false));
+		boolean isJava = fileName.endsWith(".java");
+		boolean found = false;
+		try (BufferedReader in = new BufferedReader(new FileReader(file));
+		BufferedWriter out = new BufferedWriter (new FileWriter(tmpFile, false));) {
 
 		out.write(COPYRIGHT);
-		boolean found = false;
 
 		String line = null;
 		while ((line = in.readLine()) != null)
@@ -325,10 +313,7 @@ public class FileUtil
 				out.write(line);
 				out.newLine();
 			}
-		}	//	while reading file
-		//
-		in.close();
-		out.close();
+		}}	//	while reading file
 		//
 		if (found)
 		{
@@ -456,8 +441,7 @@ public class FileUtil
 			title=Env.parseVariable(title, po, trxName, true);
 		}
 		else 
-			title=  Env.parseContext (ctx, m_WindowNo, title,
-					true, true);
+			title=  Env.parseContext (ctx, m_WindowNo, title, true, true, false, false);
 		return title;
 	}
 
@@ -471,12 +455,7 @@ public class FileUtil
         if (suffix == null)
             suffix = ".tmp";
 
-        Calendar cal = Calendar.getInstance();
-		SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmssSSS");
-		String dt = sdf.format(cal.getTime());
-		String tmpdirname = (directory != null) ? directory.getCanonicalPath() : System.getProperty("java.io.tmpdir");
-		tmpdirname += System.getProperty("file.separator") + "rpttmp_" + dt + "_" + Env.getContext(Env.getCtx(), Env.AD_SESSION_ID) + System.getProperty("file.separator");
-
+		String tmpdirname = getTempFolderName(directory);
 		File tmpdir = new File(tmpdirname);
 		tmpdir.mkdirs();
 
@@ -486,11 +465,74 @@ public class FileUtil
 
         return f;	
 	}
+    
+    /**
+     * Generates a unique temporary folder name based on the current timestamp and session ID. <br/>
+     * The folder name is either within the specified directory or the default temporary directory.
+     *
+     * @param directory the base directory where the temporary folder will be created; 
+     *                  if null, the system's default temporary directory is used
+     * @return a string representing the path to the unique temporary folder
+     * @throws IOException
+     */
+    public static String getTempFolderName(File directory) throws IOException {
+    	Calendar cal = Calendar.getInstance();
+ 		SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmssSSS");
+ 		String dt = sdf.format(cal.getTime());
+ 		String tmpdirname = (directory != null) ? directory.getCanonicalPath() : System.getProperty("java.io.tmpdir");
+ 		tmpdirname += System.getProperty("file.separator") + "rpttmp_" + dt + "_" + Env.getContext(Env.getCtx(), Env.AD_SESSION_ID) + System.getProperty("file.separator");
+
+    	return tmpdirname;
+    }
 
     public static File createTempFile(String prefix, String suffix) throws IOException
     {
         return createTempFile(prefix, suffix, null);
     }
+    
+    /**
+     * Creates a file with the given filename. <br/>
+     * If the filename includes the path, the file is created as requested. <br/>
+     * If it only includes the name, the file is created in a thread-safe temporary folder.
+     * @param fileName
+     * @return file
+     * @throws IOException
+     */
+    public static File createFile(String fileName) throws IOException {
+    	if (Util.isEmpty(fileName))
+    		throw new IllegalArgumentException("Name is required");
+
+    	File file = null;
+    	if (fileName.contains(System.getProperty("file.separator"))) {
+    		file = new File(fileName);
+    	} else {
+    		String tmpdirname = getTempFolderName(null);
+    		File tmpdir = new File(tmpdirname);
+    		tmpdir.mkdirs();
+
+    		file = new File(tmpdirname, fileName);
+    	}
+
+    	return file;	
+    }
+    
+	/**
+	 * Creates a valid file name prefix from "name"
+	 * @param name
+	 * @return file name prefix
+	 */
+    public static String makePrefix(String name) {
+		StringBuilder prefix = new StringBuilder();
+		char[] nameArray = name.toCharArray();
+		for (char ch : nameArray) {
+			if (Character.isLetterOrDigit(ch)) {
+				prefix.append(ch);
+			} else {
+				prefix.append("_");
+			}
+		}
+		return prefix.toString();
+	}
 	
 	/**
 	 * 
@@ -536,7 +578,6 @@ public class FileUtil
 				if (destinationFileOutputStream != null)
 					destinationFileOutputStream.close();
 			} catch(Exception e) { 
-				throw new AdempiereException("Exception : " + e);
 			}
 		}
 	}

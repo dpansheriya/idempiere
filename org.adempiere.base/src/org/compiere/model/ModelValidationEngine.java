@@ -26,6 +26,8 @@ import java.util.Properties;
 import java.util.StringTokenizer;
 import java.util.logging.Level;
 
+import javax.script.Bindings;
+import javax.script.CompiledScript;
 import javax.script.ScriptEngine;
 
 import org.adempiere.base.Core;
@@ -44,6 +46,9 @@ import org.compiere.util.CLogger;
 import org.compiere.util.Env;
 import org.compiere.util.KeyNamePair;
 import org.compiere.util.Util;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.FrameworkUtil;
+import org.osgi.framework.launch.Framework;
 import org.osgi.service.event.Event;
 
 /**
@@ -81,7 +86,7 @@ public class ModelValidationEngine
 	/** Engine Singleton				*/
 	private static ModelValidationEngine s_engine = null;
 	/** flag to indicate a missing model validation class */
-	private static String missingModelValidationMessage = "";
+	private String missingModelValidationMessage = "";
 
 	/**
 	 * 	Private Constructor.
@@ -120,6 +125,22 @@ public class ModelValidationEngine
 				continue;
 			loadValidatorClasses(clients[i], classNames);
 		}
+		if (    MSystem.get(Env.getCtx()).isFailOnMissingModelValidator()
+			&& !Util.isEmpty(missingModelValidationMessage)) {
+			// do not use severe, logging to db will try to init ModelValidationEngine again!
+			System.out.println(missingModelValidationMessage);
+			System.out.println("Terminating");
+	        try {
+	            BundleContext context = FrameworkUtil.getBundle(this.getClass()).getBundleContext();
+	            context.getBundle(0).stop();
+				if (context.getBundle(0) instanceof Framework framework)
+					framework.waitForStop(60000);
+			} catch (Exception e) {
+			} finally {
+				System.exit(1);
+			}
+		}
+
 	}	//	ModelValidatorEngine
 
 	/**
@@ -248,20 +269,33 @@ public class ModelValidationEngine
 					&& loginRule.getEventType().equals(MRule.EVENTTYPE_ModelValidatorLoginEvent)) {
 					String error;
 					try {
-						ScriptEngine engine = loginRule.getScriptEngine();
-						if (engine == null) {
-							throw new AdempiereException("Engine not found: " + loginRule.getEngineName());
+						// Try to use cached compiled script for better performance
+						CompiledScript compiled = Core.getCompiledScript(loginRule);
+						Object retval;
+						if (compiled != null) {
+							// Use compiled script with bindings
+							Bindings bindings = compiled.getEngine().createBindings();
+							MRule.setContext(bindings, Env.getCtx(), 0);  // no window
+							bindings.put(MRule.ARGUMENTS_PREFIX + "Ctx", Env.getCtx());
+							bindings.put(MRule.ARGUMENTS_PREFIX + "AD_Client_ID", AD_Client_ID);
+							bindings.put(MRule.ARGUMENTS_PREFIX + "AD_Org_ID", AD_Org_ID);
+							bindings.put(MRule.ARGUMENTS_PREFIX + "AD_Role_ID", AD_Role_ID);
+							bindings.put(MRule.ARGUMENTS_PREFIX + "AD_User_ID", AD_User_ID);
+							retval = compiled.eval(bindings);
+						} else {
+							// Fallback to non-compiled execution
+							ScriptEngine engine = loginRule.getScriptEngine();
+							if (engine == null) {
+								throw new AdempiereException("Engine not found: " + loginRule.getEngineName());
+							}
+							MRule.setContext(engine, Env.getCtx(), 0);  // no window
+							engine.put(MRule.ARGUMENTS_PREFIX + "Ctx", Env.getCtx());
+							engine.put(MRule.ARGUMENTS_PREFIX + "AD_Client_ID", AD_Client_ID);
+							engine.put(MRule.ARGUMENTS_PREFIX + "AD_Org_ID", AD_Org_ID);
+							engine.put(MRule.ARGUMENTS_PREFIX + "AD_Role_ID", AD_Role_ID);
+							engine.put(MRule.ARGUMENTS_PREFIX + "AD_User_ID", AD_User_ID);
+							retval = engine.eval(loginRule.getScript());
 						}
-
-						MRule.setContext(engine, Env.getCtx(), 0);  // no window
-						// now add the method arguments to the engine
-						engine.put(MRule.ARGUMENTS_PREFIX + "Ctx", Env.getCtx());
-						engine.put(MRule.ARGUMENTS_PREFIX + "AD_Client_ID", AD_Client_ID);
-						engine.put(MRule.ARGUMENTS_PREFIX + "AD_Org_ID", AD_Org_ID);
-						engine.put(MRule.ARGUMENTS_PREFIX + "AD_Role_ID", AD_Role_ID);
-						engine.put(MRule.ARGUMENTS_PREFIX + "AD_User_ID", AD_User_ID);
-
-						Object retval = engine.eval(loginRule.getScript());
 						error = (retval == null ? "" : retval.toString());
 					} catch (Exception e) {
 						e.printStackTrace();
@@ -288,14 +322,10 @@ public class ModelValidationEngine
 			return eventErrors.toString();
 		}
 
-		if ((AD_User_ID == SystemIDs.USER_SYSTEM || AD_User_ID == SystemIDs.USER_SUPERUSER) && AD_Role_ID == SystemIDs.ROLE_SYSTEM)
-			; // don't validate for user system on role system
-		else
-			if (! Util.isEmpty(missingModelValidationMessage)) {
-				MSystem system = MSystem.get(Env.getCtx());
-				if (system.isFailOnMissingModelValidator())
-					return missingModelValidationMessage;
-			}
+		if (   !Util.isEmpty(missingModelValidationMessage)
+			&& ! (   AD_Role_ID == SystemIDs.ROLE_SYSTEM
+				  && (AD_User_ID == SystemIDs.USER_SYSTEM || AD_User_ID == SystemIDs.USER_SUPERUSER)))
+			return missingModelValidationMessage;
 		return null;
 	}	//	loginComplete
 
@@ -395,19 +425,31 @@ public class ModelValidationEngine
 					&& rule.getEventType().equals(MRule.EVENTTYPE_ModelValidatorTableEvent)) {
 					String error;
 					try {
-						ScriptEngine engine = rule.getScriptEngine();
-						if (engine == null) {
-							throw new AdempiereException("Engine not found: " + rule.getEngineName());
+						// Try to use cached compiled script for better performance
+						CompiledScript compiled = Core.getCompiledScript(rule);
+						Object retval;
+						if (compiled != null) {
+							// Use compiled script with bindings
+							Bindings bindings = compiled.getEngine().createBindings();
+							MRule.setContext(bindings, po.getCtx(), 0);  // no window
+							bindings.put(MRule.ARGUMENTS_PREFIX + "Ctx", po.getCtx());
+							bindings.put(MRule.ARGUMENTS_PREFIX + "PO", po);
+							bindings.put(MRule.ARGUMENTS_PREFIX + "Type", changeType);
+							bindings.put(MRule.ARGUMENTS_PREFIX + "Event", ModelValidator.tableEventValidators[changeType]);
+							retval = compiled.eval(bindings);
+						} else {
+							// Fallback to non-compiled execution
+							ScriptEngine engine = rule.getScriptEngine();
+							if (engine == null) {
+								throw new AdempiereException("Engine not found: " + rule.getEngineName());
+							}
+							MRule.setContext(engine, po.getCtx(), 0);  // no window
+							engine.put(MRule.ARGUMENTS_PREFIX + "Ctx", po.getCtx());
+							engine.put(MRule.ARGUMENTS_PREFIX + "PO", po);
+							engine.put(MRule.ARGUMENTS_PREFIX + "Type", changeType);
+							engine.put(MRule.ARGUMENTS_PREFIX + "Event", ModelValidator.tableEventValidators[changeType]);
+							retval = engine.eval(rule.getScript());
 						}
-
-						MRule.setContext(engine, po.getCtx(), 0);  // no window
-						// now add the method arguments to the engine
-						engine.put(MRule.ARGUMENTS_PREFIX + "Ctx", po.getCtx());
-						engine.put(MRule.ARGUMENTS_PREFIX + "PO", po);
-						engine.put(MRule.ARGUMENTS_PREFIX + "Type", changeType);
-						engine.put(MRule.ARGUMENTS_PREFIX + "Event", ModelValidator.tableEventValidators[changeType]);
-
-						Object retval = engine.eval(rule.getScript());
 						error = (retval == null ? "" : retval.toString());
 					} catch (Exception e) {
 						e.printStackTrace();
@@ -561,12 +603,9 @@ public class ModelValidationEngine
 				return error;
 		}
 
-		// now process the script model validator for this event
 		List<MTableScriptValidator> scriptValidators =
-			MTableScriptValidator.getModelValidatorRules(
-					po.getCtx(),
-					po.get_Table_ID(),
-					ModelValidator.documentEventValidators[docTiming]);
+		MTableScriptValidator.getModelValidatorRules(po.getCtx(),
+			po.get_Table_ID(), ModelValidator.documentEventValidators[docTiming]);
 		if (scriptValidators != null) {
 			for (MTableScriptValidator scriptValidator : scriptValidators) {
 				MRule rule = MRule.get(po.getCtx(), scriptValidator.getAD_Rule_ID());
@@ -577,21 +616,35 @@ public class ModelValidationEngine
 					&& rule.getEventType().equals(MRule.EVENTTYPE_ModelValidatorDocumentEvent)) {
 					String error;
 					try {
-						ScriptEngine engine = rule.getScriptEngine();
-						if (engine == null) {
-							throw new AdempiereException("Engine not found: " + rule.getEngineName());
+						// Try to use cached compiled script for better performance
+						CompiledScript compiled = Core.getCompiledScript(rule);
+						Object retval;
+						if (compiled != null) {
+							// Use compiled script with bindings
+							Bindings bindings = compiled.getEngine().createBindings();
+							MRule.setContext(bindings, po.getCtx(), 0);  // no window
+							bindings.put(MRule.ARGUMENTS_PREFIX + "Ctx", po.getCtx());
+							bindings.put(MRule.ARGUMENTS_PREFIX + "PO", po);
+							bindings.put(MRule.ARGUMENTS_PREFIX + "Type", docTiming);
+							bindings.put(MRule.ARGUMENTS_PREFIX + "Event", ModelValidator.documentEventValidators[docTiming]);
+							retval = compiled.eval(bindings);
+						} else {
+							// Fallback to non-compiled execution
+							ScriptEngine engine = rule.getScriptEngine();
+							if (engine == null) {
+								throw new AdempiereException("Engine not found: " + rule.getEngineName());
+							}
+							MRule.setContext(engine, po.getCtx(), 0);  // no window
+							engine.put(MRule.ARGUMENTS_PREFIX + "Ctx", po.getCtx());
+							engine.put(MRule.ARGUMENTS_PREFIX + "PO", po);
+							engine.put(MRule.ARGUMENTS_PREFIX + "Type", docTiming);
+							engine.put(MRule.ARGUMENTS_PREFIX + "Event", ModelValidator.documentEventValidators[docTiming]);
+							retval = engine.eval(rule.getScript());
 						}
-
-						MRule.setContext(engine, po.getCtx(), 0);  // no window
-						// now add the method arguments to the engine
-						engine.put(MRule.ARGUMENTS_PREFIX + "Ctx", po.getCtx());
-						engine.put(MRule.ARGUMENTS_PREFIX + "PO", po);
-						engine.put(MRule.ARGUMENTS_PREFIX + "Type", docTiming);
-						engine.put(MRule.ARGUMENTS_PREFIX + "Event", ModelValidator.documentEventValidators[docTiming]);
-
-						Object retval = engine.eval(rule.getScript());
 						error = (retval == null ? "" : retval.toString());
-					} catch (Exception e) {
+					}
+					catch (Exception e)
+					{
 						e.printStackTrace();
 						error = e.toString();
 					}
@@ -965,7 +1018,7 @@ public class ModelValidationEngine
 	 * Before Save Properties for selected client.
 	 * @deprecated for deprecated swing client only
 	 */
-	@Deprecated
+	@Deprecated (since="13", forRemoval=true)
 	public void beforeSaveProperties ()
 	{
 		int AD_Client_ID = Env.getAD_Client_ID(Env.getCtx());
