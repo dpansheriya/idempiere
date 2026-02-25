@@ -342,7 +342,8 @@ public class MInvoiceTax extends X_C_InvoiceTax
 				//
 				// phib [ 1702807 ]: manual tax should never be amended
 				// on line level taxes
-				if (!documentLevel && amt.signum() != 0 && !isSOTrx && !MTax.get(getCtx(), lineTax_ID).isSummary())	//	manually entered
+				MTax lineTax = MTax.get(getCtx(), lineTax_ID);
+				if (!documentLevel && amt.signum() != 0 && !isSOTrx && !lineTax.isSummary())	//	manually entered
 					;
 				else if (documentLevel || baseAmt.signum() == 0)
 					amt = Env.ZERO;
