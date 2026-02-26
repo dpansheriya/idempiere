@@ -264,7 +264,7 @@ public class MReportSource extends X_PA_ReportSource
 			else
 				whcomb.append(" AND ").append(whtree);
 		}
-		else if (isIncludeNullsUserList2())
+		else if (isIncludeNullsUserList2() && (getPA_ReportLine_ID() > 0 || getPA_ReportColumn_ID() > 0))
 			whcomb.append(" AND User2_ID IS NULL");
 
 		// drop the first " AND "
