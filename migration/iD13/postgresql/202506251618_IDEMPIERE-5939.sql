@@ -1,4 +1,4 @@
--- IDMEPIERE-5939 If Financial report marked as List Source and List Transactions both with Report cube, it throw SQL exceptions
+-- IDEMPIERE-5939 If Financial report marked as List Source and List Transactions both with Report cube, it throw SQL exceptions
 SELECT register_migration_script('202506251725_IDEMPIERE-5939.sql') FROM dual;
 
 -- Jun 25, 2025, 5:20:07 PM IST
