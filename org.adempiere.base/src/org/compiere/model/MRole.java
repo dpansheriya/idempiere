@@ -177,7 +177,12 @@ public final class MRole extends X_AD_Role implements ImmutablePOSupport
 			}
 			role.setAD_User_ID(AD_User_ID);
 			s_roles.put (key, role, e -> new MRole(Env.getCtx(), e));
-			role.loadAccess(reload);
+			try {
+				role.loadAccess(reload);
+			} catch (RuntimeException e) {
+				s_roles.remove(key);
+				throw e;
+			}
 			if (s_log.isLoggable(Level.INFO)) s_log.info(role.toString());
 		}
 		return role;
