@@ -180,9 +180,8 @@ public class Doc_MatchInv extends Doc
 			return facts;
 		}
 		
-		MProduct product = MProduct.get(getCtx(), getM_Product_ID());
 		//If expense type stocked product, no impact on inventory
-        if(product != null && product.isExpenseTypeStockedProduct()) {
+        if(isExpenseTypeStockedProduct(getM_Product_ID())) {
         	return createCommitmentFacts(as,facts);
         }
 		
@@ -657,8 +656,7 @@ public class Doc_MatchInv extends Doc
 		{
 			MMatchInv matchInv = (MMatchInv)getPO();
 			//If expense type stocked product, don't create cost
-			MProduct product = MProduct.get(getCtx(), matchInv.getM_Product_ID());
-			if(product != null && product.isExpenseTypeStockedProduct()) {
+			if(isExpenseTypeStockedProduct(matchInv.getM_Product_ID())) {
 				 return "";
 			 }
 			
@@ -2871,4 +2869,18 @@ public class Doc_MatchInv extends Doc
 		
 		return isLineFullyMatched;
 	}
+	
+	/**
+	 * Check if product is expense-type stocked (excluded from costing)
+	 * 
+	 * @param productId
+	 *            product ID
+	 * @return true if expense-type stocked product
+	 */
+	private boolean isExpenseTypeStockedProduct(int productId)
+	{
+		MProduct product = MProduct.get(getCtx(), productId);
+		return product != null && product.isExpenseTypeStockedProduct();
+	}
+
 }   //  Doc_MatchInv

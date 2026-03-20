@@ -87,14 +87,15 @@ public class MCostDetail extends X_M_CostDetail
 		BigDecimal Amt, BigDecimal Qty,
 		String Description, String trxName)
 	{
-
-				
 		return createOrder (as, AD_Org_ID, M_Product_ID, M_AttributeSetInstance_ID, C_OrderLine_ID, M_CostElement_ID, 
 				Amt, Qty, Description, null, 0, trxName);
 	}
 	
 	/**
 	 * 	Create New Cost Detail record for Purchase Orders.
+	 * Note:
+	 *  - Expense-type products do NOT generate cost detail records.
+	 *  - In such cases, this method returns true to indicate successful processing, even though no record is created.
 	 * 	Called from Doc_MatchPO.
 	 *	@param as accounting schema
 	 *	@param AD_Org_ID org
@@ -116,11 +117,11 @@ public class MCostDetail extends X_M_CostDetail
 		BigDecimal Amt, BigDecimal Qty,
 		String Description, Timestamp DateAcct, int Ref_CostDetail_ID, String trxName)
 	{
-  		//If Expense type product, then don't create cost detail record
-		  MProduct product = MProduct.get(as.getCtx(), M_Product_ID);
-		  if(product.isExpenseTypeProduct())
-			  return true;
-      
+		// If Expense type product, then don't create cost detail record
+		MProduct product = MProduct.get(as.getCtx(), M_Product_ID);
+		if (product.isExpenseTypeProduct())
+			return true;
+
 		MCostDetail cd = getOrder (as, M_Product_ID, M_AttributeSetInstance_ID, C_OrderLine_ID, M_CostElement_ID, DateAcct, trxName);
 		if (cd != null && !cd.isDelta() && Ref_CostDetail_ID > 0)
 			cd.setIsBackDate(true);
@@ -325,7 +326,7 @@ public class MCostDetail extends X_M_CostDetail
 		if (product.isExpenseTypeProduct())
 			return true;
 				
-     MCostDetail cd = getShipment (as, M_Product_ID, M_AttributeSetInstance_ID, M_InOutLine_ID, M_CostElement_ID, trxName);
+		MCostDetail cd = getShipment(as, M_Product_ID, M_AttributeSetInstance_ID, M_InOutLine_ID, M_CostElement_ID, trxName);
 		//
 		if (cd == null)		//	createNew
 		{
@@ -609,7 +610,7 @@ public class MCostDetail extends X_M_CostDetail
 		BigDecimal Amt, BigDecimal Qty,
 		String Description, Timestamp DateAcct, int Ref_CostDetail_ID, String trxName)
 	{
-			// If Expense type product, then don't create cost detail record
+		// If Expense type product, then don't create cost detail record
 		MProduct product = MProduct.get(as.getCtx(), M_Product_ID);
 		if (product.isExpenseTypeProduct())
 			return true;

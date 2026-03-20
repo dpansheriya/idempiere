@@ -381,7 +381,7 @@ public class MProduct extends X_M_Product implements ImmutablePOSupport
 	public boolean setExpenseType (MExpenseType parent)
 	{
 		boolean changed = false;
-		if (!PRODUCTTYPE_ExpenseType.equals(getProductType()))
+		if (!isExpenseTypeProduct())
 		{
 			setProductType(PRODUCTTYPE_ExpenseType);
 			changed = true;
@@ -601,7 +601,7 @@ public class MProduct extends X_M_Product implements ImmutablePOSupport
 	@Override
 	public boolean isStocked ()
 	{
-        return super.isStocked() && (isItem() || PRODUCTTYPE_ExpenseType.equals(getProductType()));
+        return super.isStocked() && (isItem() || isExpenseTypeProduct());
 	}	//	isStocked
 	
 	/**

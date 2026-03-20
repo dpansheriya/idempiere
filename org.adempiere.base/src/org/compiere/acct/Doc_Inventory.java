@@ -239,7 +239,6 @@ public class Doc_Inventory extends Doc
             
 			if (costAdjustment)
 			{				
-				product = line.getProduct();
 				if (!product.isStocked())
 				{
 					doPosting = false;
@@ -260,7 +259,6 @@ public class Doc_Inventory extends Doc
 			if (costAdjustment)
 			{
 				costs = line.getAmtSource();
-				product = line.getProduct();
 				int orgId = line.getAD_Org_ID();
 				int asiId = line.getM_AttributeSetInstance_ID();
 				if (MAcctSchema.COSTINGLEVEL_Client.equals(costingLevel))
