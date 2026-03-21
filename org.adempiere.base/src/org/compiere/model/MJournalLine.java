@@ -302,9 +302,16 @@ public class MJournalLine extends X_GL_JournalLine
 			log.saveError("ParentComplete", Msg.translate(getCtx(), "GL_Journal_ID"));
 			return false;
 		}
-		if(getM_AttributeSetInstance_ID() > 0 && getM_Product_ID() <= 0) {
-			log.saveError("SaveError", Msg.getMsg(getCtx(), "PAttributeNoSelection"));
-			return false;
+
+		if (getM_AttributeSetInstance_ID() > 0 && getM_Product_ID() <= 0) {
+			MAttributeSetInstance asi = new MAttributeSetInstance(getCtx(), getM_AttributeSetInstance_ID(), get_TrxName());
+			MAttributeSet attributeSet = MAttributeSet.get(asi.getM_AttributeSet_ID());
+
+			if (MAttributeSet.M_ATTRIBUTESET_TYPE_MaterialManagementSystem.equals(attributeSet.getM_AttributeSet_Type()))
+			{
+				log.saveError("SaveError", Msg.getMsg(getCtx(), "ProductRequiredForMaterialASI"));
+				return false;
+			}
 		}
 
 		if (getAD_Org_ID() <= 0) //	Set Line Org to Doc Org if still not set 
